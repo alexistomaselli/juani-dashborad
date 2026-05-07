@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import KPIs from '@/components/KPIs';
 import OrderTable from '@/components/OrderTable';
 import { ChefHat, RefreshCcw } from 'lucide-react';
+import BackupManager from '@/components/BackupManager';
 
 export default function DashboardClient() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -53,6 +54,8 @@ export default function DashboardClient() {
     return matchesSearch && matchesStatus;
   });
 
+  const [activeTab, setActiveTab] = useState<'orders' | 'backups'>('orders');
+
   return (
     <div className="container">
       <header className="header">
@@ -65,41 +68,61 @@ export default function DashboardClient() {
             <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Gestión de Pedidos</p>
           </div>
         </div>
-        <button className="secondary" onClick={fetchOrders} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <RefreshCcw size={16} /> Actualizar
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button 
+            className={activeTab === 'orders' ? 'primary' : 'secondary'} 
+            onClick={() => setActiveTab('orders')}
+          >
+            Pedidos
+          </button>
+          <button 
+            className={activeTab === 'backups' ? 'primary' : 'secondary'} 
+            onClick={() => setActiveTab('backups')}
+          >
+            Backups
+          </button>
+          <button className="secondary" onClick={fetchOrders} title="Actualizar Datos">
+            <RefreshCcw size={16} />
+          </button>
+        </div>
       </header>
 
       <KPIs orders={orders} />
 
       <div className="main-content">
-        <div className="filter-bar card" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '200px' }}>
-            <input 
-              type="text" 
-              placeholder="Buscar por nombre o WhatsApp..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div style={{ minWidth: '150px' }}>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="ALL">Todos los estados</option>
-              <option value="PENDING">Pendientes</option>
-              <option value="DELIVERED">Entregados</option>
-              <option value="CANCELLED">Cancelados</option>
-            </select>
-          </div>
-          <div className="desktop-only" style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
-            Mostrando {filteredOrders.length} pedidos
-          </div>
-        </div>
-        
-        <OrderTable orders={filteredOrders} onUpdate={handleUpdateOrder} />
-        
-        <div className="mobile-only" style={{ color: 'var(--muted)', fontSize: '0.875rem', textAlign: 'center', marginTop: '1rem' }}>
-          Mostrando {filteredOrders.length} pedidos
-        </div>
+        {activeTab === 'orders' ? (
+          <>
+            <div className="filter-bar card" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nombre o WhatsApp..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div style={{ minWidth: '150px' }}>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="ALL">Todos los estados</option>
+                  <option value="PENDING">Pendientes</option>
+                  <option value="DELIVERED">Entregados</option>
+                  <option value="CANCELLED">Cancelados</option>
+                </select>
+              </div>
+              <div className="desktop-only" style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                Mostrando {filteredOrders.length} pedidos
+              </div>
+            </div>
+            
+            <OrderTable orders={filteredOrders} onUpdate={handleUpdateOrder} />
+            
+            <div className="mobile-only" style={{ color: 'var(--muted)', fontSize: '0.875rem', textAlign: 'center', marginTop: '1rem' }}>
+              Mostrando {filteredOrders.length} pedidos
+            </div>
+          </>
+        ) : (
+          <BackupManager />
+        )}
       </div>
     </div>
   );
