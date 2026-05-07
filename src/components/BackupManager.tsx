@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Database, Download, RotateCcw, Plus, Trash2, Loader2, FileJson } from 'lucide-react';
+import { Database, Download, RotateCcw, Plus, Trash2, Loader2, FileJson, Upload } from 'lucide-react';
+import { useRef } from 'react';
 
 export default function BackupManager() {
   const [backups, setBackups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchBackups = async () => {
     setLoading(true);
@@ -69,6 +72,40 @@ export default function BackupManager() {
     window.open(`/api/backups/download?filename=${filename}`, '_blank');
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.db')) {
+      alert('Solo se permiten archivos .db');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/backups/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        fetchBackups();
+      } else {
+        const error = await res.json();
+        alert(`Error al subir: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error uploading backup:', error);
+      alert('Error al intentar subir el archivo.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   useEffect(() => {
     fetchBackups();
   }, []);
@@ -80,14 +117,32 @@ export default function BackupManager() {
           <Database size={24} color="var(--accent)" />
           <h3 style={{ fontWeight: '700' }}>Copias de Seguridad (Backups)</h3>
         </div>
-        <button 
-          onClick={createBackup} 
-          disabled={creating}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          {creating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-          Crear Backup
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleUpload} 
+            accept=".db" 
+            style={{ display: 'none' }} 
+          />
+          <button 
+            className="secondary"
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={uploading}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+            <span className="desktop-only">Subir Backup</span>
+          </button>
+          <button 
+            onClick={createBackup} 
+            disabled={creating}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {creating ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+            Crear Backup
+          </button>
+        </div>
       </div>
 
       <div className="table-container">
