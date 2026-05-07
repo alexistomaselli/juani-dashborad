@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import KPIs from '@/components/KPIs';
 import OrderTable from '@/components/OrderTable';
-import { LayoutDashboard, RefreshCcw } from 'lucide-react';
+import { ChefHat, RefreshCcw } from 'lucide-react';
 
 export default function DashboardClient() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -58,11 +58,11 @@ export default function DashboardClient() {
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ background: 'var(--accent)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-            <LayoutDashboard size={24} color="white" />
+            <ChefHat size={24} color="white" />
           </div>
           <div>
-            <h1>AI Order Agent</h1>
-            <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Dashboard de Gestión en Tiempo Real</p>
+            <h1>Juani Cocina</h1>
+            <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Gestión de Pedidos</p>
           </div>
         </div>
         <button className="secondary" onClick={fetchOrders} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
