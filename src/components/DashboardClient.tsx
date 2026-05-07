@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import KPIs from '@/components/KPIs';
 import OrderTable from '@/components/OrderTable';
-import ChatAgent from '@/components/ChatAgent';
 import { LayoutDashboard, RefreshCcw } from 'lucide-react';
 
 export default function DashboardClient() {
@@ -61,9 +60,8 @@ export default function DashboardClient() {
 
       <KPIs orders={orders} />
 
-      <div className="chat-layout">
+      <div className="main-content">
         <OrderTable orders={orders} onStatusChange={handleStatusChange} />
-        <ChatAgent />
       </div>
     </div>
   );
