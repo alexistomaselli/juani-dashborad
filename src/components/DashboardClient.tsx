@@ -8,6 +8,8 @@ import { LayoutDashboard, RefreshCcw } from 'lucide-react';
 export default function DashboardClient() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   const fetchOrders = async () => {
     try {
@@ -41,6 +43,16 @@ export default function DashboardClient() {
     return () => clearInterval(interval);
   }, []);
 
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = 
+      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.whatsapp.includes(searchTerm);
+    
+    const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <div className="container">
       <header className="header">
@@ -61,7 +73,29 @@ export default function DashboardClient() {
       <KPIs orders={orders} />
 
       <div className="main-content">
-        <OrderTable orders={orders} onStatusChange={handleStatusChange} />
+        <div className="filter-bar card" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <input 
+              type="text" 
+              placeholder="Buscar por nombre o WhatsApp..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ minWidth: '150px' }}>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="ALL">Todos los estados</option>
+              <option value="PENDING">Pendientes</option>
+              <option value="DELIVERED">Entregados</option>
+              <option value="CANCELLED">Cancelados</option>
+            </select>
+          </div>
+          <div style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+            Mostrando {filteredOrders.length} pedidos
+          </div>
+        </div>
+        
+        <OrderTable orders={filteredOrders} onStatusChange={handleStatusChange} />
       </div>
     </div>
   );
