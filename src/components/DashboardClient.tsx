@@ -90,12 +90,16 @@ export default function DashboardClient() {
               <option value="CANCELLED">Cancelados</option>
             </select>
           </div>
-          <div style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+          <div className="desktop-only" style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
             Mostrando {filteredOrders.length} pedidos
           </div>
         </div>
         
         <OrderTable orders={filteredOrders} onUpdate={handleUpdateOrder} />
+        
+        <div className="mobile-only" style={{ color: 'var(--muted)', fontSize: '0.875rem', textAlign: 'center', marginTop: '1rem' }}>
+          Mostrando {filteredOrders.length} pedidos
+        </div>
       </div>
     </div>
   );
