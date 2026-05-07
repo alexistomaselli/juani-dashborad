@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Juani Cocina",
   description: "Dashboard de pedidos de Juani Cocina",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
