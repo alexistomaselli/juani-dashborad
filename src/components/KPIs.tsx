@@ -30,7 +30,7 @@ export default function KPIs({ orders }: KPIProps) {
 
       <div className="card kpi-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="kpi-label">Total Paquetes</span>
+          <span className="kpi-label">Total Paquetes (6uni.)</span>
           <ShoppingBag size={20} color="var(--primary)" />
         </div>
         <span className="kpi-value">{totalPackages}</span>
