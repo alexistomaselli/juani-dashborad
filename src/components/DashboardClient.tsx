@@ -23,16 +23,16 @@ export default function DashboardClient() {
     }
   };
 
-  const handleStatusChange = async (id: string, status: string) => {
+  const handleUpdateOrder = async (id: string, data: any) => {
     try {
       await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(data),
       });
       fetchOrders();
     } catch (error) {
-      console.error('Error updating status:', error);
+      console.error('Error updating order:', error);
     }
   };
 
@@ -95,7 +95,7 @@ export default function DashboardClient() {
           </div>
         </div>
         
-        <OrderTable orders={filteredOrders} onStatusChange={handleStatusChange} />
+        <OrderTable orders={filteredOrders} onUpdate={handleUpdateOrder} />
       </div>
     </div>
   );

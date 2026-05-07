@@ -1,13 +1,14 @@
 'use client';
 
-import { Phone, Package, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { Phone, Package, Calendar, Check, X } from 'lucide-react';
 
 interface OrderTableProps {
   orders: any[];
-  onStatusChange: (id: string, status: string) => void;
+  onUpdate: (id: string, data: any) => void;
 }
 
-export default function OrderTable({ orders, onStatusChange }: OrderTableProps) {
+export default function OrderTable({ orders, onUpdate }: OrderTableProps) {
   return (
     <div className="card" style={{ flex: 1 }}>
       <h3 style={{ marginBottom: '1.5rem', fontWeight: '700' }}>Gestión de Pedidos</h3>
@@ -16,7 +17,7 @@ export default function OrderTable({ orders, onStatusChange }: OrderTableProps) 
           <thead>
             <tr>
               <th>Cliente</th>
-              <th>WhatsApp</th>
+              <th>WhatsApp (Clic para editar)</th>
               <th>Producto</th>
               <th>Cant.</th>
               <th>Estado</th>
@@ -40,14 +41,11 @@ export default function OrderTable({ orders, onStatusChange }: OrderTableProps) 
                   </div>
                 </td>
                 <td>
-                  <a 
-                    href={`https://wa.me/${order.whatsapp}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ color: 'var(--primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                  >
-                    <Phone size={14} /> {order.whatsapp}
-                  </a>
+                  <EditableWhatsApp 
+                    id={order.id} 
+                    initialValue={order.whatsapp} 
+                    onSave={(val) => onUpdate(order.id, { whatsapp: val })} 
+                  />
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -64,7 +62,7 @@ export default function OrderTable({ orders, onStatusChange }: OrderTableProps) 
                 <td>
                   <select 
                     value={order.status} 
-                    onChange={(e) => onStatusChange(order.id, e.target.value)}
+                    onChange={(e) => onUpdate(order.id, { status: e.target.value })}
                     style={{ padding: '0.4rem', fontSize: '0.8rem', width: 'auto' }}
                   >
                     <option value="PENDING">Pendiente</option>
@@ -77,6 +75,44 @@ export default function OrderTable({ orders, onStatusChange }: OrderTableProps) 
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function EditableWhatsApp({ id, initialValue, onSave }: { id: string, initialValue: string, onSave: (val: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(initialValue);
+
+  const handleSave = () => {
+    onSave(value);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input 
+          autoFocus
+          type="text" 
+          value={value} 
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          onBlur={handleSave}
+          style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      onClick={() => setIsEditing(true)}
+      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+    >
+      <Phone size={14} color={initialValue ? 'var(--primary)' : 'var(--muted)'} />
+      <span style={{ color: initialValue ? 'var(--foreground)' : 'var(--muted)', fontStyle: initialValue ? 'normal' : 'italic' }}>
+        {initialValue || 'Sin WhatsApp'}
+      </span>
     </div>
   );
 }
