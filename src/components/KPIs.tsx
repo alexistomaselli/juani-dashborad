@@ -53,6 +53,12 @@ export default function KPIs({ orders }: KPIProps) {
 
   const pendingPackages = pendingOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
 
+  // Ventas Totales (Precio * Cantidad)
+  const totalRevenue = activeOrders.reduce((sum, o) => {
+    const price = o.productRef?.price ?? o.unitPrice ?? 0;
+    return sum + (price * (o.quantity || 0));
+  }, 0);
+
   // Margen de ganancia (Precio - Costo) * Cantidad
   const totalProfit = activeOrders.reduce((sum, o) => {
     const price = o.productRef?.price ?? o.unitPrice ?? 0;
@@ -61,13 +67,13 @@ export default function KPIs({ orders }: KPIProps) {
   }, 0);
 
   // Cobranza (Total Pagado vs Total Pendiente)
+  // Usamos totalAmount si existe, sino caemos en el cálculo de revenue
   const totalPaid = activeOrders.filter(o => o.isPaid).reduce((sum, o) => {
-    return sum + (o.totalAmount || 0);
+    return sum + (o.totalAmount || (o.unitPrice || 0) * o.quantity || 0);
   }, 0);
 
-  const totalUnpaid = activeOrders.filter(o => !o.isPaid).reduce((sum, o) => {
-    return sum + (o.totalAmount || 0);
-  }, 0);
+  // El pendiente es el total de ventas menos lo que ya se cobró
+  const pendingToCollect = totalRevenue - totalPaid;
 
   return (
     <div className="kpi-grid">
@@ -95,14 +101,14 @@ export default function KPIs({ orders }: KPIProps) {
 
       <div className="card kpi-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="kpi-label">Ganancia Bruta</span>
+          <span className="kpi-label">Ventas Totales</span>
           <TrendingUp size={20} color="var(--delivered)" />
         </div>
         <span className="kpi-value">
-          ${Math.round(totalProfit).toLocaleString()}
+          ${Math.round(totalRevenue).toLocaleString()}
         </span>
         <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
-          Sobre {totalPackages} packs vendidos
+          Ganancia est.: <span style={{ color: 'var(--delivered)', fontWeight: '600' }}>${Math.round(totalProfit).toLocaleString()}</span>
         </div>
       </div>
 
@@ -118,7 +124,7 @@ export default function KPIs({ orders }: KPIProps) {
           <div style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between' }}>
             <span>Pendiente de cobro:</span>
             <span style={{ color: 'var(--cancelled)', fontWeight: '600' }}>
-              ${Math.round(totalUnpaid).toLocaleString()}
+              ${Math.round(pendingToCollect).toLocaleString()}
             </span>
           </div>
         </div>
