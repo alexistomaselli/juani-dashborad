@@ -97,11 +97,6 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                         ({order.quantity * order.productRef.unitsPerPackage} un.)
                       </div>
                     )}
-                    {order.totalAmount && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--delivered)', fontWeight: 'normal' }}>
-                        ${order.totalAmount}
-                      </div>
-                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '120px' }}>
@@ -118,16 +113,21 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                     </div>
                   </td>
                   <td>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUpdate(order.id, { isPaid: !order.isPaid });
-                      }}
-                      className={`status-badge ${order.isPaid ? 'status-DELIVERED' : 'status-CANCELLED'}`}
-                      style={{ cursor: 'pointer', border: 'none', padding: '0.4rem 0.8rem', width: '100%', textAlign: 'center' }}
-                    >
-                      {order.isPaid ? 'Pagado' : 'Impago'}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
+                      <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)' }}>
+                        ${order.quantity * (order.productRef?.price || 0)}
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdate(order.id, { isPaid: !order.isPaid });
+                        }}
+                        className={`status-badge ${order.isPaid ? 'status-DELIVERED' : 'status-CANCELLED'}`}
+                        style={{ cursor: 'pointer', border: 'none', padding: '0.4rem 0.8rem', width: '100%', textAlign: 'center', fontSize: '0.75rem' }}
+                      >
+                        {order.isPaid ? 'Pagado' : 'Impago'}
+                      </button>
+                    </div>
                   </td>
                   <td style={{ position: 'relative' }}>
                     <button 
@@ -215,11 +215,14 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                   <Calendar size={12} /> {new Date(order.createdAt).toLocaleDateString()}
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                 <span className={`status-badge status-${order.status}`}>
                   {order.status === 'PENDING' ? 'Pendiente' : 
                    order.status === 'DELIVERED' ? 'Entregado' : 'Cancelado'}
                 </span>
+                <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
+                  ${order.quantity * (order.productRef?.price || 0)}
+                </div>
                 <button 
                   onClick={() => onUpdate(order.id, { isPaid: !order.isPaid })}
                   className={`status-badge ${order.isPaid ? 'status-DELIVERED' : 'status-CANCELLED'}`}
@@ -247,11 +250,6 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                 {order.productRef && (
                   <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>
                     ({order.quantity * order.productRef.unitsPerPackage} un. totales)
-                  </div>
-                )}
-                {order.totalAmount && (
-                  <div style={{ fontSize: '0.875rem', color: 'var(--delivered)', fontWeight: '700' }}>
-                    ${order.totalAmount}
                   </div>
                 )}
               </div>
