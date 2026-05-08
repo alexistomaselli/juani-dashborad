@@ -5,12 +5,19 @@ import KPIs from '@/components/KPIs';
 import OrderTable from '@/components/OrderTable';
 import { ChefHat, RefreshCcw } from 'lucide-react';
 import BackupManager from '@/components/BackupManager';
+import ProductManager from '@/components/ProductManager';
+import NewOrderModal from '@/components/NewOrderModal';
+import { Plus } from 'lucide-react';
 
 export default function DashboardClient() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  const [activeTab, setActiveTab] = useState<'orders' | 'backups' | 'products'>('orders');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [orderToEdit, setOrderToEdit] = useState<any>(null);
 
   const fetchOrders = async () => {
     try {
@@ -37,6 +44,22 @@ export default function DashboardClient() {
     }
   };
 
+  const handleDeleteOrder = async (id: string) => {
+    try {
+      await fetch(`/api/orders/${id}`, {
+        method: 'DELETE',
+      });
+      fetchOrders();
+    } catch (error) {
+      console.error('Error deleting order:', error);
+    }
+  };
+
+  const handleEditOrder = (order: any) => {
+    setOrderToEdit(order);
+    setIsModalOpen(true);
+  };
+
   useEffect(() => {
     fetchOrders();
     // Poll every 10 seconds to keep the dashboard updated
@@ -53,8 +76,6 @@ export default function DashboardClient() {
     
     return matchesSearch && matchesStatus;
   });
-
-  const [activeTab, setActiveTab] = useState<'orders' | 'backups'>('orders');
 
   return (
     <div className="container">
@@ -76,6 +97,12 @@ export default function DashboardClient() {
             Pedidos
           </button>
           <button 
+            className={activeTab === 'products' ? 'primary' : 'secondary'} 
+            onClick={() => setActiveTab('products')}
+          >
+            Productos
+          </button>
+          <button 
             className={activeTab === 'backups' ? 'primary' : 'secondary'} 
             onClick={() => setActiveTab('backups')}
           >
@@ -90,7 +117,7 @@ export default function DashboardClient() {
       <KPIs orders={orders} />
 
       <div className="main-content">
-        {activeTab === 'orders' ? (
+        {activeTab === 'orders' && (
           <>
             <div className="filter-bar card" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '200px' }}>
@@ -109,21 +136,47 @@ export default function DashboardClient() {
                   <option value="CANCELLED">Cancelados</option>
                 </select>
               </div>
+              
+              <button 
+                className="primary" 
+                onClick={() => setIsModalOpen(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <Plus size={18} /> Nuevo Pedido
+              </button>
+
               <div className="desktop-only" style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                 Mostrando {filteredOrders.length} pedidos
               </div>
             </div>
             
-            <OrderTable orders={filteredOrders} onUpdate={handleUpdateOrder} />
+            <OrderTable 
+              orders={filteredOrders} 
+              onUpdate={handleUpdateOrder} 
+              onDelete={handleDeleteOrder}
+              onEdit={handleEditOrder}
+            />
             
             <div className="mobile-only" style={{ color: 'var(--muted)', fontSize: '0.875rem', textAlign: 'center', marginTop: '1rem' }}>
               Mostrando {filteredOrders.length} pedidos
             </div>
           </>
-        ) : (
-          <BackupManager />
         )}
+        
+        {activeTab === 'backups' && <BackupManager />}
+        
+        {activeTab === 'products' && <ProductManager />}
       </div>
+
+      <NewOrderModal 
+        isOpen={isModalOpen} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setOrderToEdit(null);
+        }} 
+        onSuccess={fetchOrders} 
+        orderToEdit={orderToEdit}
+      />
     </div>
   );
 }

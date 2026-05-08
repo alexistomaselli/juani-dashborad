@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
@@ -12,13 +9,31 @@ datasource db {
 }
 
 model Order {
-  id          String   @id @default(cuid())
+  id           String   @id @default(cuid())
   customerName String
-  whatsapp    String
-  quantity    Int
-  product     String
-  status      String   @default("PENDING") // PENDING, DELIVERED, CANCELLED
-  totalAmount Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  whatsapp     String
+  quantity     Int
+  product      String
+  productId    String?
+  unitPrice    Float?
+  unitCost     Float?
+  status       String   @default("PENDING")
+  isPaid       Boolean  @default(false)
+  totalAmount  Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  orderNumber  Int?
+  productRef   Product? @relation(fields: [productId], references: [id])
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  unitsPerPackage Int      @default(1)
+  price           Float
+  cost            Float
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  orders          Order[]
 }

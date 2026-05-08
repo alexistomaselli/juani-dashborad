@@ -96,6 +96,52 @@ body {
   margin-top: 1rem;
 }
 
+@media (min-width: 769px) {
+  .table-container {
+    overflow: visible;
+  }
+}
+
+.dropdown-menu {
+  background: #18181b !important; /* Solid background to override glassmorphism */
+  backdrop-filter: none !important;
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  min-width: 180px;
+  padding: 0.5rem;
+  opacity: 1 !important;
+}
+
+.dropdown-item {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  border-radius: 0.5rem;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background: var(--secondary);
+}
+
+.dropdown-item.danger {
+  color: var(--cancelled);
+  border-top: 1px solid var(--card-border);
+  border-radius: 0;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -251,4 +297,41 @@ h1 {
 
 .wa-link:hover {
   background: rgba(16, 185, 129, 0.2);
+}
+
+/* Modal and Animations */
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--card-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
 }
