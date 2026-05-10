@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, Package, Calendar, Edit2, Trash2, MoreVertical, Check, X, Wallet } from 'lucide-react';
+import { Phone, Package, Calendar, Edit2, Trash2, MoreVertical, Check, X, Wallet, MapPin, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Order, Product, OrderWithProduct } from '@/types';
 import ConfirmDialog from './ConfirmDialog';
@@ -40,6 +40,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                 <th>Producto</th>
                 <th>Cant.</th>
                 <th>Estado</th>
+                <th>Dirección</th>
                 <th>Pago</th>
                 <th>Acciones</th>
               </tr>
@@ -47,7 +48,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
             <tbody>
               {orders.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--muted)', padding: '3rem' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--muted)', padding: '3rem' }}>
                     No hay pedidos registrados aún.
                   </td>
                 </tr>
@@ -68,15 +69,10 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                     </div>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <EditableField 
-                        value={order.whatsapp} 
-                        onSave={(val) => onUpdate(order.id, { whatsapp: val })} 
-                        icon={Phone}
-                        placeholder="Sin WhatsApp"
-                        fontSize="0.875rem"
-                      />
-                    </div>
+                    <WhatsAppField 
+                      value={order.whatsapp} 
+                      onSave={(val) => onUpdate(order.id, { whatsapp: val })} 
+                    />
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -111,6 +107,16 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                         <option value="CANCELLED">Cancelado</option>
                       </select>
                     </div>
+                  </td>
+                  <td>
+                    <EditableField 
+                      value={order.deliveryAddress || ''} 
+                      onSave={(val) => onUpdate(order.id, { deliveryAddress: val })} 
+                      icon={MapPin}
+                      placeholder="Sin dirección"
+                      fontSize="0.85rem"
+                      externalLink={order.deliveryAddress ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.deliveryAddress)}` : undefined}
+                    />
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
@@ -235,11 +241,21 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
 
             <div className="mobile-card-row">
               <span className="mobile-card-label">WhatsApp</span>
-              <EditableField 
+              <WhatsAppField 
                 value={order.whatsapp} 
                 onSave={(val) => onUpdate(order.id, { whatsapp: val })} 
-                placeholder="Sin WhatsApp"
-                fontSize="0.875rem"
+              />
+            </div>
+
+            <div className="mobile-card-row">
+              <span className="mobile-card-label">Dirección</span>
+              <EditableField 
+                value={order.deliveryAddress || ''} 
+                onSave={(val) => onUpdate(order.id, { deliveryAddress: val })} 
+                icon={MapPin}
+                placeholder="Sin dirección"
+                fontSize="0.9rem"
+                externalLink={order.deliveryAddress ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.deliveryAddress)}` : undefined}
               />
             </div>
 
@@ -276,7 +292,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
               
               {order.whatsapp ? (
                 <a 
-                  href={`https://wa.me/${order.whatsapp.replace(/\D/g, '')}`} 
+                  href={`https://wa.me/54${order.whatsapp.replace(/\D/g, '')}`} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="wa-link"
@@ -313,23 +329,132 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
   );
 }
 
+function WhatsAppField({ value, onSave }: { value: string; onSave: (val: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value);
+
+  // Sync temp value when prop changes
+  useEffect(() => {
+    setTempValue(value);
+  }, [value]);
+
+  if (isEditing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <input
+          autoFocus
+          type="text"
+          value={tempValue}
+          onChange={(e) => setTempValue(e.target.value)}
+          onBlur={() => {
+            if (tempValue !== value) onSave(tempValue);
+            setIsEditing(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              if (tempValue !== value) onSave(tempValue);
+              setIsEditing(false);
+            }
+            if (e.key === 'Escape') {
+              setTempValue(value);
+              setIsEditing(false);
+            }
+          }}
+          style={{ 
+            padding: '0.25rem 0.5rem', 
+            fontSize: '0.875rem', 
+            width: '140px',
+            background: 'var(--background)',
+            border: '1px solid var(--accent)',
+            borderRadius: '4px',
+            color: 'var(--foreground)'
+          }}
+        />
+      </div>
+    );
+  }
+
+  const formattedValue = value.replace(/\D/g, '');
+  const displayValue = formattedValue.startsWith('54') ? formattedValue.substring(2) : formattedValue;
+  const linkValue = formattedValue.startsWith('54') ? formattedValue : `54${formattedValue}`;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minHeight: '1.5rem' }}>
+      {value ? (
+        <a
+          href={`https://wa.me/${linkValue}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ 
+            color: 'var(--primary)', 
+            textDecoration: 'none', 
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+            padding: '0.2rem 0.4rem',
+            borderRadius: '4px',
+            background: 'rgba(16, 185, 129, 0.05)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Phone size={12} />
+          +54 {displayValue}
+        </a>
+      ) : (
+        <span style={{ color: 'var(--muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>Sin WhatsApp</span>
+      )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEditing(true);
+          }}
+          style={{ 
+            background: 'rgba(255, 255, 255, 0.05)', 
+            border: '1px solid var(--card-border)', 
+            padding: '0.4rem', 
+            cursor: 'pointer', 
+            color: 'var(--muted)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '0.5rem',
+            transition: 'all 0.2s'
+          }}
+          className="hover-bright"
+          title="Editar WhatsApp"
+        >
+          <Edit2 size={14} />
+        </button>
+    </div>
+  );
+}
+
 function EditableField({ 
   value: initialValue, 
   onSave, 
   icon: Icon, 
   placeholder,
   fontWeight = '400',
-  fontSize = '1rem'
+  fontSize = '1rem',
+  externalLink
 }: { 
   value: string, 
   onSave: (val: string) => void, 
   icon?: any,
   placeholder?: string,
   fontWeight?: string,
-  fontSize?: string
+  fontSize?: string,
+  externalLink?: string
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
+
+  // Sync local value when initialValue changes
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   const handleSave = () => {
     if (value !== initialValue) {
@@ -346,9 +471,24 @@ function EditableField({
           type="text" 
           value={value} 
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') {
+              setValue(initialValue);
+              setIsEditing(false);
+            }
+          }}
           onBlur={handleSave}
-          style={{ padding: '0.25rem 0.5rem', fontSize, fontWeight, width: '100%' }}
+          style={{ 
+            padding: '0.25rem 0.5rem', 
+            fontSize, 
+            fontWeight, 
+            width: '100%',
+            background: 'var(--background)',
+            border: '1px solid var(--accent)',
+            borderRadius: '4px',
+            color: 'var(--foreground)'
+          }}
           placeholder={placeholder}
         />
       </div>
@@ -357,18 +497,46 @@ function EditableField({
 
   return (
     <div 
-      onClick={() => setIsEditing(true)}
-      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', minHeight: '1.5rem' }}
+      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minHeight: '1.5rem' }}
     >
-      {Icon && <Icon size={14} color={initialValue ? 'var(--primary)' : 'var(--muted)'} />}
-      <span style={{ 
-        color: initialValue ? 'var(--foreground)' : 'var(--muted)', 
-        fontStyle: initialValue ? 'normal' : 'italic',
-        fontWeight,
-        fontSize
-      }}>
-        {initialValue || placeholder || 'Editar'}
-      </span>
+      <div 
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsEditing(true);
+        }}
+        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1 }}
+      >
+        {Icon && <Icon size={14} color={initialValue ? 'var(--primary)' : 'var(--muted)'} />}
+        <span style={{ 
+          color: initialValue ? 'var(--foreground)' : 'var(--muted)', 
+          fontStyle: initialValue ? 'normal' : 'italic',
+          fontWeight,
+          fontSize
+        }}>
+          {initialValue || placeholder || 'Editar'}
+        </span>
+      </div>
+      
+      {externalLink && initialValue && (
+        <a 
+          href={externalLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ 
+            color: 'var(--primary)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            padding: '0.25rem',
+            borderRadius: '4px',
+            background: 'rgba(16, 185, 129, 0.1)',
+            transition: 'all 0.2s'
+          }}
+          title="Ver en Google Maps"
+        >
+          <ExternalLink size={14} />
+        </a>
+      )}
     </div>
   );
 }

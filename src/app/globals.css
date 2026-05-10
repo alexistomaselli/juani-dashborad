@@ -28,7 +28,8 @@ body {
 }
 
 .container {
-  max-width: 1200px;
+  width: auto !important;
+  max-width: none !important;
   margin: 0 auto;
   padding: 2rem;
 }
@@ -218,6 +219,16 @@ button.secondary:hover {
   background: #52525b;
 }
 
+button.danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+button.danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
 .header {
   display: flex;
   justify-content: space-between;
@@ -334,4 +345,9 @@ h1 {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--secondary);
+}
+
+.hover-bright:hover {
+  filter: brightness(1.2);
+  border-color: var(--muted) !important;
 }

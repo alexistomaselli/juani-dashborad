@@ -88,6 +88,7 @@ export async function POST(request: Request) {
           totalAmount: totalAmount,
           status: body.status || 'PENDING',
           isPaid: body.isPaid === true || body.isPaid === 'true',
+          deliveryAddress: body.deliveryAddress || null,
         },
         include: { productRef: true }
       });

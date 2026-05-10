@@ -19,6 +19,7 @@ export interface Order {
   createdAt: Date;
   updatedAt: Date;
   orderNumber: number | null;
+  deliveryAddress: string | null;
 }
 
 export interface Product {

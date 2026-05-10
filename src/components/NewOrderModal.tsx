@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Plus, User, Phone, Package, ShoppingCart, Loader2, Check } from 'lucide-react';
+import { X, Plus, User, Phone, Package, ShoppingCart, Loader2, Check, MapPin } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -27,7 +27,8 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
     whatsapp: '',
     productId: '',
     quantity: '1',
-    isPaid: false
+    isPaid: false,
+    deliveryAddress: ''
   });
 
   useEffect(() => {
@@ -37,7 +38,8 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
         whatsapp: orderToEdit.whatsapp || '',
         productId: orderToEdit.productId || '',
         quantity: orderToEdit.quantity?.toString() || '1',
-        isPaid: orderToEdit.isPaid || false
+        isPaid: orderToEdit.isPaid || false,
+        deliveryAddress: orderToEdit.deliveryAddress || ''
       });
     } else {
       setForm({
@@ -45,7 +47,8 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
         whatsapp: '',
         productId: '',
         quantity: '1',
-        isPaid: false
+        isPaid: false,
+        deliveryAddress: ''
       });
     }
   }, [orderToEdit, isOpen]);
@@ -92,7 +95,7 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
       });
 
       if (res.ok) {
-        setForm({ customerName: '', whatsapp: '', productId: '', quantity: '1', isPaid: false });
+        setForm({ customerName: '', whatsapp: '', productId: '', quantity: '1', isPaid: false, deliveryAddress: '' });
         onSuccess();
         onClose();
       }
@@ -164,6 +167,19 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
               placeholder="Ej: 1122334455"
               value={form.whatsapp}
               onChange={e => setForm({...form, whatsapp: e.target.value})}
+              style={{ width: '100%' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', marginBottom: '0.5rem', color: 'var(--muted)' }}>
+              <MapPin size={14} /> Dirección de Entrega (opcional)
+            </label>
+            <input 
+              type="text" 
+              placeholder="Ej: Av. Siempreviva 742"
+              value={form.deliveryAddress}
+              onChange={e => setForm({...form, deliveryAddress: e.target.value})}
               style={{ width: '100%' }}
             />
           </div>

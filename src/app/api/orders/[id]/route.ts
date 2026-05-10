@@ -65,6 +65,7 @@ export async function PATCH(
       status: updatedData.status,
       isPaid: updatedData.isPaid !== undefined ? (updatedData.isPaid === true || updatedData.isPaid === 'true') : undefined,
       totalAmount: totalAmount,
+      deliveryAddress: updatedData.deliveryAddress,
     };
 
     // Remove undefined fields
