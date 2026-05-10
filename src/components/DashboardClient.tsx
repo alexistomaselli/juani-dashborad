@@ -81,12 +81,11 @@ export default function DashboardClient() {
     <div className="container">
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'var(--accent)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-            <ChefHat size={24} color="white" />
+          <div style={{ background: 'transparent', padding: '0', borderRadius: '0.75rem' }}>
+            <img src="/logo.png" alt="Juani Cocina Logo" style={{ height: '50px', width: 'auto' }} />
           </div>
-          <div>
-            <h1>Juani Cocina</h1>
-            <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Gestión de Pedidos</p>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <p style={{ color: 'var(--muted)', fontSize: '0.875rem', fontWeight: '500' }}>Gestión de Pedidos</p>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
