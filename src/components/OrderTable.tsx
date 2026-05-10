@@ -115,7 +115,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
                       <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)' }}>
-                        ${order.quantity * (order.productRef?.price || 0)}
+                        ${order.totalAmount || (order.quantity * (order.productRef?.price || 0))}
                       </div>
                       <button 
                         onClick={(e) => {
@@ -221,7 +221,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit }: Order
                    order.status === 'DELIVERED' ? 'Entregado' : 'Cancelado'}
                 </span>
                 <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
-                  ${order.quantity * (order.productRef?.price || 0)}
+                  ${order.totalAmount || (order.quantity * (order.productRef?.price || 0))}
                 </div>
                 <button 
                   onClick={() => onUpdate(order.id, { isPaid: !order.isPaid })}

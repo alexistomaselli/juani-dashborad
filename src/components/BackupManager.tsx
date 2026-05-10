@@ -72,6 +72,33 @@ export default function BackupManager() {
     window.open(`/api/backups/download?filename=${filename}`, '_blank');
   };
 
+  const deleteBackup = async (filename: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar el backup "${filename}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/backups', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename }),
+      });
+
+      if (res.ok) {
+        fetchBackups();
+      } else {
+        const error = await res.json();
+        alert(`Error al eliminar: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting backup:', error);
+      alert('Error al intentar eliminar el backup.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -199,6 +226,14 @@ export default function BackupManager() {
                         style={{ padding: '0.4rem', borderRadius: '0.4rem', background: 'var(--pending)' }}
                       >
                         <RotateCcw size={16} />
+                      </button>
+                      <button 
+                        className="danger" 
+                        onClick={() => deleteBackup(backup.filename)}
+                        title="Eliminar"
+                        style={{ padding: '0.4rem', borderRadius: '0.4rem', background: 'rgba(255, 0, 0, 0.1)', color: '#ff4444' }}
+                      >
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>

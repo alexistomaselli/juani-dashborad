@@ -52,3 +52,31 @@ export async function POST() {
     return NextResponse.json({ error: 'Failed to create backup' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { filename } = await req.json();
+
+    if (!filename) {
+      return NextResponse.json({ error: 'Filename is required' }, { status: 400 });
+    }
+
+    const filePath = path.join(BACKUP_DIR, filename);
+
+    // Security check: ensure the file is within the backup directory
+    if (!filePath.startsWith(BACKUP_DIR)) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 403 });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+
+    fs.unlinkSync(filePath);
+
+    return NextResponse.json({ message: 'Backup deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting backup:', error);
+    return NextResponse.json({ error: 'Failed to delete backup' }, { status: 500 });
+  }
+}
