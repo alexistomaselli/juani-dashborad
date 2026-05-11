@@ -2,11 +2,11 @@
 
 # Ejecutar migraciones de Prisma al iniciar
 echo "Verificando esquema de Prisma..."
-if [ -f "./prisma/schema.prisma" ]; then
+if [ -f "./schema.prisma" ]; then
     echo "Esquema encontrado. Ejecutando migraciones..."
-    npx prisma migrate deploy || { echo "Fallo al ejecutar migraciones"; exit 1; }
+    npx prisma migrate deploy --schema ./schema.prisma || { echo "Fallo al ejecutar migraciones"; exit 1; }
 else
-    echo "ERROR: No se encontró el archivo ./prisma/schema.prisma"
+    echo "ERROR: No se encontró el archivo ./schema.prisma"
     exit 1
 fi
 
