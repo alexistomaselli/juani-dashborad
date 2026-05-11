@@ -19,6 +19,8 @@ FROM node:23-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Instalar openssl para que Prisma funcione en slim
 RUN apt-get update -y && apt-get install -y openssl
