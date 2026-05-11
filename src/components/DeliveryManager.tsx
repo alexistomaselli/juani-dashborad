@@ -170,7 +170,7 @@ export default function DeliveryManager() {
     <div className="delivery-manager">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
-          <h2 style={{ fontWeight: '800', fontSize: '1.5rem', marginBottom: '0.25rem' }}>Gestión de Repartos</h2>
+          <h2 style={{ fontWeight: '800', fontSize: '1.5rem', marginBottom: '0.25rem' }}>Gestión de Repartos V2</h2>
           <p style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Organiza tus pedidos en grupos de entrega</p>
         </div>
         <button className="primary" onClick={() => setIsCreating(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

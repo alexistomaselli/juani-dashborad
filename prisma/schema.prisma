@@ -9,25 +9,25 @@ datasource db {
 }
 
 model Order {
-  id           String   @id @default(cuid())
-  customerName String
-  whatsapp     String
-  quantity     Int
-  product      String
-  productId    String?
-  unitPrice    Float?
-  unitCost     Float?
-  status       String   @default("PENDING")
-  isPaid       Boolean  @default(false)
-  totalAmount  Float?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deliveryAddress String?
-  orderNumber  Int?
-  productRef   Product? @relation(fields: [productId], references: [id])
+  id               String    @id @default(cuid())
+  customerName     String
+  whatsapp         String
+  quantity         Int
+  product          String
+  productId        String?
+  unitPrice        Float?
+  unitCost         Float?
+  status           String    @default("PENDING")
+  isPaid           Boolean   @default(false)
+  totalAmount      Float?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deliveryAddress  String?
+  orderNumber      Int?
   deliverySequence Int?
-  deliveryId   String?
-  delivery     Delivery? @relation(fields: [deliveryId], references: [id])
+  deliveryId       String?
+  delivery         Delivery? @relation(fields: [deliveryId], references: [id])
+  productRef       Product?  @relation(fields: [productId], references: [id])
 }
 
 model Product {
