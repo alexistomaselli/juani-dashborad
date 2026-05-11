@@ -25,6 +25,7 @@ model Order {
   deliveryAddress String?
   orderNumber  Int?
   productRef   Product? @relation(fields: [productId], references: [id])
+  deliverySequence Int?
   deliveryId   String?
   delivery     Delivery? @relation(fields: [deliveryId], references: [id])
 }

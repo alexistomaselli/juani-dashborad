@@ -21,6 +21,7 @@ export interface Order {
   orderNumber: number | null;
   deliveryAddress: string | null;
   deliveryId: string | null;
+  deliverySequence: number | null;
 }
 
 export interface Delivery {

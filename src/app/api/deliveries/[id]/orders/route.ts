@@ -14,15 +14,24 @@ export async function POST(
       return NextResponse.json({ error: 'orderIds must be an array' }, { status: 400 });
     }
 
-    // Assign multiple orders to this delivery
-    await prisma.order.updateMany({
-      where: {
-        id: { in: orderIds }
-      },
-      data: {
-        deliveryId: id
-      }
+    // Fetch current max sequence for this delivery
+    const maxOrder = await prisma.order.findFirst({
+      where: { deliveryId: id },
+      orderBy: { deliverySequence: 'desc' },
+      select: { deliverySequence: true }
     });
+    let nextSequence = (maxOrder?.deliverySequence ?? 0) + 1;
+
+    // Update each order individually to assign deliveryId and incrementing sequence
+    for (const orderId of orderIds) {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          deliveryId: id,
+          deliverySequence: nextSequence++
+        }
+      });
+    }
 
     const updatedDelivery = await prisma.delivery.findUnique({
       where: { id: id },

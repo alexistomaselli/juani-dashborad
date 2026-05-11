@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Truck, Plus, Trash2, Calendar, Package, ChevronRight, ChevronDown, CheckCircle2, Clock, Edit2, X, Check, MapPin, ExternalLink } from 'lucide-react';
+import { Truck, Plus, Trash2, Calendar, Package, ChevronRight, ChevronDown, ChevronUp, CheckCircle2, Clock, Edit2, X, Check, MapPin, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Delivery, Order } from '@/types';
 import ConfirmDialog from './ConfirmDialog';
@@ -109,6 +109,44 @@ export default function DeliveryManager() {
       }
     } catch (error) {
       console.error('Error removing order:', error);
+    }
+  };
+
+  const handleMoveOrder = async (deliveryId: string, orderId: string, direction: 'up' | 'down') => {
+    const delivery = deliveries.find(d => d.id === deliveryId);
+    if (!delivery || !delivery.orders) return;
+
+    const orders = [...delivery.orders];
+    const index = orders.findIndex(o => o.id === orderId);
+    if (index === -1) return;
+
+    if (direction === 'up' && index > 0) {
+      [orders[index], orders[index - 1]] = [orders[index - 1], orders[index]];
+    } else if (direction === 'down' && index < orders.length - 1) {
+      [orders[index], orders[index + 1]] = [orders[index + 1], orders[index]];
+    } else {
+      return;
+    }
+
+    // Update local state optimistically
+    const newDeliveries = deliveries.map(d => 
+      d.id === deliveryId ? { ...d, orders } : d
+    );
+    setDeliveries(newDeliveries);
+
+    // Persist to server
+    try {
+      const res = await fetch(`/api/deliveries/${deliveryId}/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: orders.map(o => o.id) }),
+      });
+      if (!res.ok) {
+        fetchDeliveries();
+      }
+    } catch (error) {
+      console.error('Error reordering orders:', error);
+      fetchDeliveries();
     }
   };
 
@@ -276,11 +314,34 @@ export default function DeliveryManager() {
                     <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--card-border)', paddingTop: '1rem' }}>
                       <h4 style={{ fontSize: '0.875rem', fontWeight: '600', marginBottom: '1rem', color: 'var(--muted)' }}>Pedidos en este reparto:</h4>
                       {delivery.orders && delivery.orders.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                           {delivery.orders.map((order) => (
-                            <div key={order.id} className="order-item-mini">
+                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                           {delivery.orders.map((order, index) => (
+                            <motion.div 
+                              layout
+                              key={order.id} 
+                              className="order-item-mini"
+                            >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginRight: '4px' }}>
+                                    <button 
+                                      onClick={() => handleMoveOrder(delivery.id, order.id, 'up')}
+                                      disabled={index === 0}
+                                      className="reorder-btn"
+                                      title="Subir"
+                                    >
+                                      <ChevronUp size={12} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleMoveOrder(delivery.id, order.id, 'down')}
+                                      disabled={index === (delivery.orders?.length || 0) - 1}
+                                      className="reorder-btn"
+                                      title="Bajar"
+                                    >
+                                      <ChevronDown size={12} />
+                                    </button>
+                                  </div>
+                                  <span style={{ fontWeight: '700', fontSize: '0.875rem', color: 'var(--primary)', width: '20px' }}>{index + 1}.</span>
                                   <span style={{ fontWeight: '700', fontSize: '0.875rem' }}>#{order.orderNumber}</span>
                                   <span style={{ fontWeight: '500' }}>{order.customerName}</span>
                                 </div>
@@ -357,7 +418,7 @@ export default function DeliveryManager() {
                                   </div>
                                 )}
                               </div>
-                            </div>
+                            </motion.div>
                           ))}
                         </div>
                       ) : (
@@ -421,6 +482,26 @@ export default function DeliveryManager() {
           background: rgba(255,255,255,0.03);
           border-radius: 0.5rem;
           border: 1px solid var(--card-border);
+        }
+        .reorder-btn {
+          background: rgba(255,255,255,0.05);
+          border: none;
+          border-radius: 4px;
+          padding: 1px;
+          color: var(--muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .reorder-btn:hover:not(:disabled) {
+          background: var(--primary);
+          color: white;
+        }
+        .reorder-btn:disabled {
+          opacity: 0.2;
+          cursor: not-allowed;
         }
       `}</style>
     </div>
