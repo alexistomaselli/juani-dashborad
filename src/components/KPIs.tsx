@@ -69,7 +69,8 @@ export default function KPIs({ orders }: KPIProps) {
   // Cobranza (Total Pagado vs Total Pendiente)
   // Usamos totalAmount si existe, sino caemos en el cálculo de revenue
   const totalPaid = activeOrders.filter(o => o.isPaid).reduce((sum, o) => {
-    return sum + (o.totalAmount || (o.unitPrice || 0) * o.quantity || 0);
+    const price = o.productRef?.price ?? o.unitPrice ?? 0;
+    return sum + (price * (o.quantity || 0));
   }, 0);
 
   // El pendiente es el total de ventas menos lo que ya se cobró
