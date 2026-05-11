@@ -20,6 +20,16 @@ export interface Order {
   updatedAt: Date;
   orderNumber: number | null;
   deliveryAddress: string | null;
+  deliveryId: string | null;
+}
+
+export interface Delivery {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  orders?: Order[];
 }
 
 export interface Product {

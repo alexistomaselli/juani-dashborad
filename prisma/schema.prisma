@@ -25,6 +25,8 @@ model Order {
   deliveryAddress String?
   orderNumber  Int?
   productRef   Product? @relation(fields: [productId], references: [id])
+  deliveryId   String?
+  delivery     Delivery? @relation(fields: [deliveryId], references: [id])
 }
 
 model Product {
@@ -37,4 +39,13 @@ model Product {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   orders          Order[]
+}
+
+model Delivery {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
 }
