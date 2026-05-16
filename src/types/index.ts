@@ -4,10 +4,21 @@
  * en el IDE con la cadena de re-exports de @prisma/client.
  */
 
+export interface Customer {
+  id: string;
+  name: string;
+  whatsapp: string | null;
+  address: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Order {
   id: string;
-  customerName: string;
-  whatsapp: string;
+  customerName: string; // Mantener por compatibilidad con UI actual
+  whatsapp: string;     // Mantener por compatibilidad con UI actual
+  customerId: string | null;
+  customer?: Customer | null;
   quantity: number;
   product: string;
   productId: string | null;
@@ -16,8 +27,8 @@ export interface Order {
   status: string;
   isPaid: boolean;
   totalAmount: number | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   orderNumber: number | null;
   deliveryAddress: string | null;
   deliveryId: string | null;
@@ -28,8 +39,8 @@ export interface Delivery {
   id: string;
   name: string;
   status: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   orders?: Order[];
 }
 
@@ -40,10 +51,11 @@ export interface Product {
   price: number;
   cost: number;
   active: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type OrderWithProduct = Order & {
   productRef?: Product | null;
 };
+

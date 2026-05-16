@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Package, Plus, Trash2, Edit2, Check, X, Loader2, DollarSign, Tag, Calculator, Info } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Ingredient {
   id: string;
@@ -24,8 +25,13 @@ export default function ProductManager() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('Product')
+        .select('*')
+        .eq('active', true)
+        .order('name');
+      
+      if (error) throw error;
       if (Array.isArray(data)) setProducts(data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -51,15 +57,21 @@ export default function ProductManager() {
 
   const handleSave = async (id: string) => {
     try {
-      const res = await fetch(`/api/products/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      });
-      if (res.ok) {
-        setEditingId(null);
-        fetchProducts();
-      }
+      const { error } = await supabase
+        .from('Product')
+        .update({
+          name: editForm.name,
+          unitsPerPackage: parseInt(editForm.unitsPerPackage),
+          price: parseFloat(editForm.price),
+          cost: parseFloat(editForm.cost),
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setEditingId(null);
+      fetchProducts();
     } catch (error) {
       console.error('Error saving product:', error);
     }
@@ -67,16 +79,20 @@ export default function ProductManager() {
 
   const handleAdd = async () => {
     try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      });
-      if (res.ok) {
-        setIsAdding(false);
-        setEditForm({ name: '', unitsPerPackage: '1', price: '', cost: '' });
-        fetchProducts();
-      }
+      const { error } = await supabase
+        .from('Product')
+        .insert({
+          name: editForm.name,
+          unitsPerPackage: parseInt(editForm.unitsPerPackage),
+          price: parseFloat(editForm.price),
+          cost: parseFloat(editForm.cost)
+        });
+
+      if (error) throw error;
+
+      setIsAdding(false);
+      setEditForm({ name: '', unitsPerPackage: '1', price: '', cost: '' });
+      fetchProducts();
     } catch (error) {
       console.error('Error adding product:', error);
     }
@@ -85,7 +101,11 @@ export default function ProductManager() {
   const handleDelete = async (id: string) => {
     if (!confirm('¿Estás seguro de desactivar este producto?')) return;
     try {
-      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      const { error } = await supabase
+        .from('Product')
+        .update({ active: false })
+        .eq('id', id);
+      if (error) throw error;
       fetchProducts();
     } catch (error) {
       console.error('Error deleting product:', error);

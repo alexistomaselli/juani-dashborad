@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { X, Plus, User, Phone, Package, ShoppingCart, Loader2, Check, MapPin } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Product {
   id: string;
   name: string;
   price: number;
+  cost: number;
   unitsPerPackage: number;
 }
 
@@ -62,10 +64,15 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/products');
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('Product')
+        .select('*')
+        .eq('active', true)
+        .order('name');
+      
+      if (error) throw error;
       if (Array.isArray(data)) {
-        setProducts(data.filter(p => p.active));
+        setProducts(data);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -81,26 +88,110 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
     setSubmitting(true);
     try {
       const selectedProduct = products.find(p => p.id === form.productId);
-      const url = orderToEdit ? `/api/orders/${orderToEdit.id}` : '/api/orders';
-      const method = orderToEdit ? 'PATCH' : 'POST';
+      
+      let customerId = orderToEdit?.customerId || null;
 
-      const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          product: selectedProduct?.name || orderToEdit?.product || '',
-          quantity: parseInt(form.quantity)
-        }),
-      });
+      // Logic for Customer normalization
+      if (form.whatsapp) {
+        // Search by WhatsApp
+        const { data: existingCustomer } = await supabase
+          .from('Customer')
+          .select('id')
+          .eq('whatsapp', form.whatsapp)
+          .single();
 
-      if (res.ok) {
-        setForm({ customerName: '', whatsapp: '', productId: '', quantity: '1', isPaid: false, deliveryAddress: '' });
-        onSuccess();
-        onClose();
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+          // Update customer data if changed
+          await supabase
+            .from('Customer')
+            .update({ 
+              name: form.customerName, 
+              address: form.deliveryAddress,
+              updatedAt: new Date().toISOString()
+            })
+            .eq('id', customerId);
+        } else {
+          // Create new customer
+          const { data: newCustomer, error: custError } = await supabase
+            .from('Customer')
+            .insert({
+              name: form.customerName,
+              whatsapp: form.whatsapp,
+              address: form.deliveryAddress
+            })
+            .select('id')
+            .single();
+          
+          if (!custError && newCustomer) {
+            customerId = newCustomer.id;
+          }
+        }
+      } else if (!customerId) {
+        // No whatsapp provided and no previous customerId, create a record anyway for normalization
+        const { data: anonymousCustomer, error: anonError } = await supabase
+          .from('Customer')
+          .insert({
+            name: form.customerName,
+            address: form.deliveryAddress
+          })
+          .select('id')
+          .single();
+        
+        if (!anonError && anonymousCustomer) {
+          customerId = anonymousCustomer.id;
+        }
       }
+
+      const orderData = {
+        customerName: form.customerName,
+        whatsapp: form.whatsapp,
+        productId: form.productId,
+        product: selectedProduct?.name || orderToEdit?.product || '',
+        quantity: parseInt(form.quantity),
+        price: selectedProduct?.price || orderToEdit?.price || 0,
+        cost: selectedProduct?.cost || orderToEdit?.cost || 0,
+        isPaid: form.isPaid,
+        deliveryAddress: form.deliveryAddress,
+        customerId: customerId,
+        updatedAt: new Date().toISOString()
+      };
+
+      let result;
+      if (orderToEdit) {
+        result = await supabase
+          .from('Order')
+          .update(orderData)
+          .eq('id', orderToEdit.id);
+      } else {
+        // For new orders, we need an orderNumber. 
+        // In a real app we might use a DB function or just fetch the max and increment.
+        const { data: maxOrder } = await supabase
+          .from('Order')
+          .select('orderNumber')
+          .order('orderNumber', { ascending: false })
+          .limit(1);
+        
+        const nextNumber = (maxOrder?.[0]?.orderNumber || 0) + 1;
+        
+        result = await supabase
+          .from('Order')
+          .insert({
+            ...orderData,
+            orderNumber: nextNumber,
+            status: 'PENDING',
+            deliverySequence: nextNumber // Use same as orderNumber for initial sequence
+          });
+      }
+
+      if (result.error) throw result.error;
+
+      setForm({ customerName: '', whatsapp: '', productId: '', quantity: '1', isPaid: false, deliveryAddress: '' });
+      onSuccess();
+      onClose();
     } catch (error) {
       console.error('Error saving order:', error);
+      alert('Error al guardar el pedido. Revisa la consola.');
     } finally {
       setSubmitting(false);
     }

@@ -5,6 +5,7 @@ import { Truck, Plus, Trash2, Calendar, Package, ChevronRight, ChevronDown, Chev
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Delivery, Order } from '@/types';
 import ConfirmDialog from './ConfirmDialog';
+import { supabase } from '@/lib/supabase';
 
 export default function DeliveryManager() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -18,9 +19,26 @@ export default function DeliveryManager() {
 
   const fetchDeliveries = async () => {
     try {
-      const res = await fetch('/api/deliveries', { cache: 'no-store' });
-      const data = await res.json();
-      if (Array.isArray(data)) setDeliveries(data);
+      const { data, error } = await supabase
+        .from('Delivery')
+        .select(`
+          *,
+          orders:Order(
+            *,
+            customer:Customer(*)
+          )
+        `)
+        .order('createdAt', { ascending: false });
+      
+      if (error) throw error;
+
+      // Sort orders within each delivery by sequence
+      const processedData = (data || []).map(d => ({
+        ...d,
+        orders: (d.orders || []).sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0))
+      }));
+
+      setDeliveries(processedData);
     } catch (error) {
       console.error('Error fetching deliveries:', error);
     } finally {
@@ -37,16 +55,15 @@ export default function DeliveryManager() {
     if (!newName.trim()) return;
 
     try {
-      const res = await fetch('/api/deliveries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName }),
-      });
-      if (res.ok) {
-        setNewName('');
-        setIsCreating(false);
-        fetchDeliveries();
-      }
+      const { error } = await supabase
+        .from('Delivery')
+        .insert({ name: newName });
+      
+      if (error) throw error;
+
+      setNewName('');
+      setIsCreating(false);
+      fetchDeliveries();
     } catch (error) {
       console.error('Error creating delivery:', error);
     }
@@ -54,12 +71,20 @@ export default function DeliveryManager() {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(`/api/deliveries/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        fetchDeliveries();
-      }
+      // First, unassign orders from this delivery
+      await supabase
+        .from('Order')
+        .update({ deliveryId: null })
+        .eq('deliveryId', id);
+
+      // Then delete the delivery
+      const { error } = await supabase
+        .from('Delivery')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      fetchDeliveries();
     } catch (error) {
       console.error('Error deleting delivery:', error);
     }
@@ -67,14 +92,13 @@ export default function DeliveryManager() {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const res = await fetch(`/api/deliveries/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        fetchDeliveries();
-      }
+      const { error } = await supabase
+        .from('Delivery')
+        .update({ status, updatedAt: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (error) throw error;
+      fetchDeliveries();
     } catch (error) {
       console.error('Error updating status:', error);
     }
@@ -83,15 +107,14 @@ export default function DeliveryManager() {
   const handleUpdateName = async (id: string) => {
     if (!editingName.trim()) return;
     try {
-      const res = await fetch(`/api/deliveries/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editingName }),
-      });
-      if (res.ok) {
-        setEditingId(null);
-        fetchDeliveries();
-      }
+      const { error } = await supabase
+        .from('Delivery')
+        .update({ name: editingName, updatedAt: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (error) throw error;
+      setEditingId(null);
+      fetchDeliveries();
     } catch (error) {
       console.error('Error updating name:', error);
     }
@@ -99,14 +122,13 @@ export default function DeliveryManager() {
 
   const handleRemoveOrder = async (deliveryId: string, orderId: string) => {
     try {
-      const res = await fetch(`/api/deliveries/${deliveryId}/orders`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds: [orderId] }),
-      });
-      if (res.ok) {
-        fetchDeliveries();
-      }
+      const { error } = await supabase
+        .from('Order')
+        .update({ deliveryId: null, deliverySequence: 0 })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      fetchDeliveries();
     } catch (error) {
       console.error('Error removing order:', error);
     }
@@ -134,16 +156,18 @@ export default function DeliveryManager() {
     );
     setDeliveries(newDeliveries);
 
-    // Persist to server
+    // Persist to server - batch update sequence
     try {
-      const res = await fetch(`/api/deliveries/${deliveryId}/reorder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds: orders.map(o => o.id) }),
-      });
-      if (!res.ok) {
-        fetchDeliveries();
-      }
+      const updates = orders.map((o, idx) => ({
+        id: o.id,
+        deliverySequence: idx + 1
+      }));
+
+      // We can't do multiple updates with different values in one .update() easily without upsert or multiple calls
+      // For simplicity and speed in this context, we'll do them in parallel
+      await Promise.all(updates.map(u => 
+        supabase.from('Order').update({ deliverySequence: u.deliverySequence }).eq('id', u.id)
+      ));
     } catch (error) {
       console.error('Error reordering orders:', error);
       fetchDeliveries();
@@ -153,14 +177,13 @@ export default function DeliveryManager() {
   const handleUpdateOrderStatus = async (orderId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'PENDING' ? 'DELIVERED' : 'PENDING';
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        fetchDeliveries();
-      }
+      const { error } = await supabase
+        .from('Order')
+        .update({ status: newStatus, updatedAt: new Date().toISOString() })
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      fetchDeliveries();
     } catch (error) {
       console.error('Error updating order status:', error);
     }

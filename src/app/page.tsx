@@ -1,9 +1,12 @@
-import DashboardClient from '@/components/DashboardClient';
+import DashboardSummary from '@/components/DashboardSummary';
+import DashboardLayout from '@/components/DashboardLayout';
 
 export default function Home() {
   return (
-    <main>
-      <DashboardClient />
-    </main>
+    <DashboardLayout>
+      <div style={{ paddingBottom: '2rem' }}>
+        <DashboardSummary />
+      </div>
+    </DashboardLayout>
   );
 }

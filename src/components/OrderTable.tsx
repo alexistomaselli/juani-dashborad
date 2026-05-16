@@ -3,18 +3,23 @@
 import { useState, useEffect } from 'react';
 import { Phone, Package, Calendar, Edit2, Trash2, MoreVertical, Check, X, Wallet, MapPin, ExternalLink, Truck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import EditableField from './ui/EditableField';
+import WhatsAppField from './ui/WhatsAppField';
 import type { Order, Product, OrderWithProduct } from '@/types';
 import ConfirmDialog from './ConfirmDialog';
+import { supabase } from '@/lib/supabase';
+
+import { useDashboard } from '@/context/DashboardContext';
 
 interface OrderTableProps {
   orders: OrderWithProduct[];
   onUpdate: (id: string, data: any) => void;
   onDelete: (id: string) => void;
-  onEdit: (order: OrderWithProduct) => void;
   onRefresh: () => void;
 }
 
-export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefresh }: OrderTableProps) {
+export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: OrderTableProps) {
+  const { setOrderToEdit, setIsModalOpen } = useDashboard();
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -33,8 +38,13 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
 
   const fetchDeliveries = async () => {
     try {
-      const res = await fetch('/api/deliveries', { cache: 'no-store' });
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('Delivery')
+        .select(`
+          *,
+          orders:Order(*)
+        `);
+      if (error) throw error;
       if (Array.isArray(data)) setDeliveries(data);
     } catch (error) {
       console.error('Error fetching deliveries:', error);
@@ -66,16 +76,33 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
   const handleAssignToDelivery = async (deliveryId: string) => {
     setIsAssigning(true);
     try {
-      const res = await fetch(`/api/deliveries/${deliveryId}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds: selectedIds }),
-      });
-      if (res.ok) {
-        setSelectedIds([]);
-        setShowAssignModal(false);
-        onRefresh();
+      // 1. Obtener la secuencia máxima actual para este reparto
+      const { data: maxOrder, error: maxError } = await supabase
+        .from('Order')
+        .select('deliverySequence')
+        .eq('deliveryId', deliveryId)
+        .order('deliverySequence', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (maxError) throw maxError;
+      let nextSequence = (maxOrder?.deliverySequence || 0) + 1;
+
+      // 2. Actualizar las órdenes seleccionadas
+      for (const orderId of selectedIds) {
+        const { error } = await supabase
+          .from('Order')
+          .update({ 
+            deliveryId, 
+            deliverySequence: nextSequence++ 
+          })
+          .eq('id', orderId);
+        if (error) throw error;
       }
+
+      setSelectedIds([]);
+      setShowAssignModal(false);
+      onRefresh();
     } catch (error) {
       console.error('Error assigning orders:', error);
     } finally {
@@ -89,28 +116,31 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
     setIsCreatingNew(true);
     try {
       // 1. Create the delivery
-      const createRes = await fetch('/api/deliveries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newDeliveryName }),
-      });
+      const { data: newDelivery, error: createError } = await supabase
+        .from('Delivery')
+        .insert({ name: newDeliveryName })
+        .select()
+        .single();
       
-      if (!createRes.ok) throw new Error('Failed to create delivery');
-      const newDelivery = await createRes.json();
+      if (createError) throw createError;
       
       // 2. Assign orders to it
-      const assignRes = await fetch(`/api/deliveries/${newDelivery.id}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds: selectedIds }),
-      });
-      
-      if (assignRes.ok) {
-        setNewDeliveryName('');
-        setSelectedIds([]);
-        setShowAssignModal(false);
-        onRefresh();
+      let nextSequence = 1;
+      for (const orderId of selectedIds) {
+        const { error } = await supabase
+          .from('Order')
+          .update({ 
+            deliveryId: newDelivery.id, 
+            deliverySequence: nextSequence++ 
+          })
+          .eq('id', orderId);
+        if (error) throw error;
       }
+      
+      setNewDeliveryName('');
+      setSelectedIds([]);
+      setShowAssignModal(false);
+      onRefresh();
     } catch (error) {
       console.error('Error in create and assign flow:', error);
     } finally {
@@ -168,8 +198,8 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
                   </td>
                   <td>
                     <EditableField 
-                      value={order.customerName} 
-                      onSave={(val) => onUpdate(order.id, { customerName: val })} 
+                      value={order.customer?.name || order.customerName || ''} 
+                      onSave={(val: string) => onUpdate(order.id, { customerName: val })} 
                       fontWeight="600"
                     />
                     <div style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
@@ -178,8 +208,8 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
                   </td>
                   <td>
                     <WhatsAppField 
-                      value={order.whatsapp} 
-                      onSave={(val) => onUpdate(order.id, { whatsapp: val })} 
+                      value={order.customer?.whatsapp || order.whatsapp || ''} 
+                      onSave={(val: string) => onUpdate(order.id, { whatsapp: val })} 
                     />
                   </td>
                   <td>
@@ -218,12 +248,12 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
                   </td>
                   <td>
                     <EditableField 
-                      value={order.deliveryAddress || ''} 
-                      onSave={(val) => onUpdate(order.id, { deliveryAddress: val })} 
+                      value={order.customer?.address || order.deliveryAddress || ''} 
+                      onSave={(val: string) => onUpdate(order.id, { deliveryAddress: val })} 
                       icon={MapPin}
                       placeholder="Sin dirección"
                       fontSize="0.85rem"
-                      externalLink={order.deliveryAddress ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.deliveryAddress)}` : undefined}
+                      externalLink={(order.customer?.address || order.deliveryAddress) ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.customer?.address || order.deliveryAddress || '')}` : undefined}
                     />
                   </td>
                   <td>
@@ -278,7 +308,11 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
                           
                           <button 
                             className="dropdown-item"
-                            onClick={() => { onEdit(order); setOpenDropdownId(null); }}
+                            onClick={() => { 
+                              setOrderToEdit(order); 
+                              setIsModalOpen(true);
+                              setOpenDropdownId(null); 
+                            }}
                           >
                             <Edit2 size={16} /> Editar Pedido
                           </button>
@@ -319,8 +353,8 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
                     #{order.orderNumber}
                   </span>
                   <EditableField 
-                    value={order.customerName} 
-                    onSave={(val) => onUpdate(order.id, { customerName: val })} 
+                    value={order.customerName || ''} 
+                    onSave={(val: string) => onUpdate(order.id, { customerName: val })} 
                     fontWeight="700"
                     fontSize="1.1rem"
                   />
@@ -350,8 +384,8 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
             <div className="mobile-card-row">
               <span className="mobile-card-label">WhatsApp</span>
               <WhatsAppField 
-                value={order.whatsapp} 
-                onSave={(val) => onUpdate(order.id, { whatsapp: val })} 
+                value={order.whatsapp || ''} 
+                onSave={(val: string) => onUpdate(order.id, { whatsapp: val })} 
               />
             </div>
 
@@ -359,7 +393,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
               <span className="mobile-card-label">Dirección</span>
               <EditableField 
                 value={order.deliveryAddress || ''} 
-                onSave={(val) => onUpdate(order.id, { deliveryAddress: val })} 
+                onSave={(val: string) => onUpdate(order.id, { deliveryAddress: val })} 
                 icon={MapPin}
                 placeholder="Sin dirección"
                 fontSize="0.9rem"
@@ -393,7 +427,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
                 </select>
                 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button onClick={() => onEdit(order)} className="secondary" style={{ padding: '0.5rem' }} title="Editar"><Edit2 size={18} /></button>
+                  <button onClick={() => { setOrderToEdit(order); setIsModalOpen(true); }} className="secondary" style={{ padding: '0.5rem' }} title="Editar"><Edit2 size={18} /></button>
                   <button onClick={() => setConfirmDeleteId(order.id)} className="secondary" style={{ padding: '0.5rem', color: 'var(--cancelled)' }} title="Eliminar"><Trash2 size={18} /></button>
                 </div>
               </div>
@@ -610,214 +644,4 @@ export default function OrderTable({ orders, onUpdate, onDelete, onEdit, onRefre
   );
 }
 
-function WhatsAppField({ value, onSave }: { value: string; onSave: (val: string) => void }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [tempValue, setTempValue] = useState(value);
-
-  // Sync temp value when prop changes
-  useEffect(() => {
-    setTempValue(value);
-  }, [value]);
-
-  if (isEditing) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-        <input
-          autoFocus
-          type="text"
-          value={tempValue}
-          onChange={(e) => setTempValue(e.target.value)}
-          onBlur={() => {
-            if (tempValue !== value) onSave(tempValue);
-            setIsEditing(false);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              if (tempValue !== value) onSave(tempValue);
-              setIsEditing(false);
-            }
-            if (e.key === 'Escape') {
-              setTempValue(value);
-              setIsEditing(false);
-            }
-          }}
-          style={{ 
-            padding: '0.25rem 0.5rem', 
-            fontSize: '0.875rem', 
-            width: '140px',
-            background: 'var(--background)',
-            border: '1px solid var(--accent)',
-            borderRadius: '4px',
-            color: 'var(--foreground)'
-          }}
-        />
-      </div>
-    );
-  }
-
-  const formattedValue = value.replace(/\D/g, '');
-  const displayValue = formattedValue.startsWith('54') ? formattedValue.substring(2) : formattedValue;
-  const linkValue = formattedValue.startsWith('54') ? formattedValue : `54${formattedValue}`;
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minHeight: '1.5rem' }}>
-      {value ? (
-        <a
-          href={`https://wa.me/${linkValue}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ 
-            color: 'var(--primary)', 
-            textDecoration: 'none', 
-            fontSize: '0.875rem',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.25rem',
-            padding: '0.2rem 0.4rem',
-            borderRadius: '4px',
-            background: 'rgba(16, 185, 129, 0.05)'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Phone size={12} />
-          +54 {displayValue}
-        </a>
-      ) : (
-        <span style={{ color: 'var(--muted)', fontSize: '0.875rem', fontStyle: 'italic' }}>Sin WhatsApp</span>
-      )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsEditing(true);
-          }}
-          style={{ 
-            background: 'rgba(255, 255, 255, 0.05)', 
-            border: '1px solid var(--card-border)', 
-            padding: '0.4rem', 
-            cursor: 'pointer', 
-            color: 'var(--muted)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '0.5rem',
-            transition: 'all 0.2s'
-          }}
-          className="hover-bright"
-          title="Editar WhatsApp"
-        >
-          <Edit2 size={14} />
-        </button>
-    </div>
-  );
-}
-
-function EditableField({ 
-  value: initialValue, 
-  onSave, 
-  icon: Icon, 
-  placeholder,
-  fontWeight = '400',
-  fontSize = '1rem',
-  externalLink
-}: { 
-  value: string, 
-  onSave: (val: string) => void, 
-  icon?: any,
-  placeholder?: string,
-  fontWeight?: string,
-  fontSize?: string,
-  externalLink?: string
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [value, setValue] = useState(initialValue);
-
-  // Sync local value when initialValue changes
-  useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
-
-  const handleSave = () => {
-    if (value !== initialValue) {
-      onSave(value);
-    }
-    setIsEditing(false);
-  };
-
-  if (isEditing) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
-        <input 
-          autoFocus
-          type="text" 
-          value={value} 
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave();
-            if (e.key === 'Escape') {
-              setValue(initialValue);
-              setIsEditing(false);
-            }
-          }}
-          onBlur={handleSave}
-          style={{ 
-            padding: '0.25rem 0.5rem', 
-            fontSize, 
-            fontWeight, 
-            width: '100%',
-            background: 'var(--background)',
-            border: '1px solid var(--accent)',
-            borderRadius: '4px',
-            color: 'var(--foreground)'
-          }}
-          placeholder={placeholder}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div 
-      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minHeight: '1.5rem' }}
-    >
-      <div 
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsEditing(true);
-        }}
-        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', flex: 1 }}
-      >
-        {Icon && <Icon size={14} color={initialValue ? 'var(--primary)' : 'var(--muted)'} />}
-        <span style={{ 
-          color: initialValue ? 'var(--foreground)' : 'var(--muted)', 
-          fontStyle: initialValue ? 'normal' : 'italic',
-          fontWeight,
-          fontSize
-        }}>
-          {initialValue || placeholder || 'Editar'}
-        </span>
-      </div>
-      
-      {externalLink && initialValue && (
-        <a 
-          href={externalLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          style={{ 
-            color: 'var(--primary)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            padding: '0.25rem',
-            borderRadius: '4px',
-            background: 'rgba(16, 185, 129, 0.1)',
-            transition: 'all 0.2s'
-          }}
-          title="Ver en Google Maps"
-        >
-          <ExternalLink size={14} />
-        </a>
-      )}
-    </div>
-  );
-}
+// Remove WhatsAppField and EditableField definitions as they are now imported from ui/

@@ -1,36 +1,13 @@
-import { ShoppingBag, Clock, CheckCircle, TrendingUp, Wallet } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, TrendingUp, Wallet, Users } from 'lucide-react';
 
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  cost: number;
-  unitsPerPackage: number;
-}
-
-interface Order {
-  id: string;
-  orderNumber: number | null;
-  customerName: string;
-  whatsapp: string;
-  quantity: number;
-  product: string;
-  productId: string | null;
-  productRef: Product | null;
-  unitPrice: number | null;
-  unitCost: number | null;
-  status: string;
-  isPaid: boolean;
-  totalAmount: number | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import { OrderWithProduct } from '@/types';
 
 interface KPIProps {
-  orders: Order[];
+  orders: OrderWithProduct[];
+  totalCustomers?: number;
 }
 
-export default function KPIs({ orders }: KPIProps) {
+export default function KPIs({ orders, totalCustomers }: KPIProps) {
   const activeOrders = orders.filter(o => o.status !== 'CANCELLED');
   const deliveredOrders = activeOrders.filter(o => o.status === 'DELIVERED');
   const pendingOrders = orders.filter(o => o.status === 'PENDING');
@@ -75,6 +52,9 @@ export default function KPIs({ orders }: KPIProps) {
 
   // El pendiente es el total de ventas menos lo que ya se cobró
   const pendingToCollect = totalRevenue - totalPaid;
+
+  // Ticket Promedio
+  const avgTicket = activeOrders.length > 0 ? totalRevenue / activeOrders.length : 0;
 
   return (
     <div className="kpi-grid">
@@ -123,13 +103,39 @@ export default function KPIs({ orders }: KPIProps) {
             ${Math.round(totalPaid).toLocaleString()} <span style={{ fontSize: '0.875rem', fontWeight: 'normal' }}>Pagado</span>
           </span>
           <div style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Pendiente de cobro:</span>
+            <span>Pendiente:</span>
             <span style={{ color: 'var(--cancelled)', fontWeight: '600' }}>
               ${Math.round(pendingToCollect).toLocaleString()}
             </span>
           </div>
         </div>
       </div>
+
+      <div className="card kpi-card" style={{ borderLeft: '4px solid var(--accent)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="kpi-label">Ticket Promedio</span>
+          <TrendingUp size={20} color="var(--accent)" />
+        </div>
+        <span className="kpi-value" style={{ fontSize: '2rem' }}>
+          ${Math.round(avgTicket).toLocaleString()}
+        </span>
+        <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
+          Valor medio por pedido
+        </div>
+      </div>
+
+      {totalCustomers !== undefined && (
+        <div className="card kpi-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="kpi-label">Total Clientes</span>
+            <Users size={20} color="var(--accent)" />
+          </div>
+          <span className="kpi-value">{totalCustomers}</span>
+          <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
+            Clientes registrados en la base
+          </div>
+        </div>
+      )}
     </div>
   );
 }
