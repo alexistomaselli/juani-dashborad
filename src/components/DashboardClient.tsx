@@ -10,6 +10,8 @@ import ProductManager from '@/components/ProductManager';
 import DeliveryManager from '@/components/DeliveryManager';
 import NewOrderModal from '@/components/NewOrderModal';
 import { Plus, Truck } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+
 
 export default function DashboardClient() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -26,8 +28,15 @@ export default function DashboardClient() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/orders', { cache: 'no-store' });
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('Order')
+        .select(`
+          *,
+          productRef:Product(*)
+        `)
+        .order('orderNumber', { ascending: true });
+
+      if (error) throw error;
       if (Array.isArray(data)) setOrders(data);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -35,6 +44,7 @@ export default function DashboardClient() {
       setLoading(false);
     }
   };
+
 
   const handleUpdateOrder = async (id: string, data: any) => {
     try {
