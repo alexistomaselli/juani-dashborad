@@ -24,14 +24,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    async function checkSession() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
+    // Escuchar cambios de estado y cargar sesión inicial de forma robusta y centralizada
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      const currentUser = session?.user ?? null;
 
-        if (currentUser && mounted) {
-          setUser(currentUser);
-          
+      if (currentUser) {
+        setUser(currentUser);
+        try {
           // Buscar el rol en la base de datos
           const { data, error } = await supabase
             .from('UserRole')
@@ -39,51 +39,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('email', currentUser.email?.trim().toLowerCase())
             .maybeSingle();
 
-          if (data && !error && mounted) {
-            setRole(data.role as 'SUPERADMIN' | 'ADMIN');
-          } else if (mounted) {
-            // Desloguear si no tiene un rol asignado
-            console.warn('Usuario autenticado sin rol en UserRole:', currentUser.email);
-            await supabase.auth.signOut();
+          if (mounted) {
+            if (data && !error) {
+              setRole(data.role as 'SUPERADMIN' | 'ADMIN');
+            } else {
+              console.warn('Usuario autenticado sin rol en UserRole:', currentUser.email);
+              await supabase.auth.signOut();
+              setUser(null);
+              setRole(null);
+            }
+          }
+        } catch (err) {
+          console.error('Error al obtener rol del usuario:', err);
+          if (mounted) {
             setUser(null);
             setRole(null);
           }
-        }
-      } catch (err) {
-        console.error('Error al verificar sesión inicial:', err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      const currentUser = session?.user ?? null;
-
-      if (currentUser) {
-        setUser(currentUser);
-        // Buscar el rol
-        const { data, error } = await supabase
-          .from('UserRole')
-          .select('role')
-          .eq('email', currentUser.email?.trim().toLowerCase())
-          .maybeSingle();
-
-        if (data && !error) {
-          setRole(data.role as 'SUPERADMIN' | 'ADMIN');
-        } else {
-          console.warn('Cambio de estado: usuario sin rol asignado:', currentUser.email);
-          await supabase.auth.signOut();
-          setUser(null);
-          setRole(null);
+        } finally {
+          if (mounted) setLoading(false);
         }
       } else {
         setUser(null);
         setRole(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
