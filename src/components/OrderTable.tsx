@@ -10,6 +10,7 @@ import ConfirmDialog from './ConfirmDialog';
 import { supabase } from '@/lib/supabase';
 
 import { useDashboard } from '@/context/DashboardContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface OrderTableProps {
   orders: OrderWithProduct[];
@@ -20,6 +21,7 @@ interface OrderTableProps {
 
 export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: OrderTableProps) {
   const { setOrderToEdit, setIsModalOpen } = useDashboard();
+  const { role } = useAuth();
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -317,15 +319,17 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                             <Edit2 size={16} /> Editar Pedido
                           </button>
                           
-                          <button 
-                            className="dropdown-item danger"
-                            onClick={() => { 
-                              setConfirmDeleteId(order.id);
-                              setOpenDropdownId(null); 
-                            }}
-                          >
-                            <Trash2 size={16} /> Eliminar Pedido
-                          </button>
+                          {role === 'SUPERADMIN' && (
+                            <button 
+                              className="dropdown-item danger"
+                              onClick={() => { 
+                                setConfirmDeleteId(order.id);
+                                setOpenDropdownId(null); 
+                              }}
+                            >
+                              <Trash2 size={16} /> Eliminar Pedido
+                            </button>
+                          )}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -428,7 +432,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button onClick={() => { setOrderToEdit(order); setIsModalOpen(true); }} className="secondary" style={{ padding: '0.5rem' }} title="Editar"><Edit2 size={18} /></button>
-                  <button onClick={() => setConfirmDeleteId(order.id)} className="secondary" style={{ padding: '0.5rem', color: 'var(--cancelled)' }} title="Eliminar"><Trash2 size={18} /></button>
+                  {role === 'SUPERADMIN' && (
+                    <button onClick={() => setConfirmDeleteId(order.id)} className="secondary" style={{ padding: '0.5rem', color: 'var(--cancelled)' }} title="Eliminar"><Trash2 size={18} /></button>
+                  )}
                 </div>
               </div>
               

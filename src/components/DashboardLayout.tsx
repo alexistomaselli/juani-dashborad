@@ -5,14 +5,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import KPIs from '@/components/KPIs';
-import { ChefHat, RefreshCcw, Menu, X, Package, Users, LayoutDashboard, ChevronDown, Plus, Truck, ShoppingBag } from 'lucide-react';
+import { ChefHat, RefreshCcw, Menu, X, Package, Users, LayoutDashboard, ChevronDown, Plus, Truck, ShoppingBag, LogOut, MessageSquare } from 'lucide-react';
 import NewOrderModal from '@/components/NewOrderModal';
 import { useDashboard } from '@/context/DashboardContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { orders, fetchOrders, isModalOpen, setIsModalOpen, orderToEdit, setOrderToEdit } = useDashboard();
+  const { user, role, logout } = useAuth();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isKpisCollapsed, setIsKpisCollapsed] = useState(true);
@@ -22,6 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (pathname.includes('/clientes')) return 'customers';
     if (pathname.includes('/productos')) return 'products';
     if (pathname.includes('/repartos')) return 'deliveries';
+    if (pathname.includes('/conversaciones')) return 'conversations';
     return 'orders';
   };
 
@@ -56,12 +59,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo-container" style={{ 
-            background: 'var(--primary)', 
-            padding: '0.5rem', 
-            borderRadius: '0.75rem',
-            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+            padding: '0.25rem', 
+            display: 'flex',
+            alignItems: 'center'
           }}>
-            <ChefHat color="white" size={24} />
+            <img 
+              src="/logo-white.png" 
+              alt="Juani Cocina" 
+              style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+            />
           </div>
           <div>
             <h1 style={{ fontSize: '1.25rem', fontWeight: '800', margin: 0, letterSpacing: '-0.02em' }}>Juani Cocina</h1>
@@ -102,6 +108,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Clientes
             </button>
           </Link>
+          <Link href="/conversaciones">
+            <button className={activeTab === 'conversations' ? 'primary' : 'secondary'} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <MessageSquare size={16} /> Conversaciones
+            </button>
+          </Link>
           <Link href="/repartos">
             <button className={activeTab === 'deliveries' ? 'primary' : 'secondary'} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Truck size={16} /> Repartos
@@ -110,6 +121,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button className="secondary" onClick={fetchOrders} title="Actualizar Datos">
             <RefreshCcw size={16} />
           </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: '0.5rem', borderLeft: '1px solid rgba(255, 255, 255, 0.1)', paddingLeft: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+              <span style={{ fontSize: '0.8125rem', fontWeight: '600', color: 'var(--foreground)' }}>
+                {user?.email?.split('@')[0]}
+              </span>
+              <span style={{ 
+                fontSize: '0.625rem', 
+                fontWeight: '700', 
+                color: role === 'SUPERADMIN' ? '#10b981' : '#f59e0b',
+                background: role === 'SUPERADMIN' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                border: role === 'SUPERADMIN' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(245, 158, 11, 0.2)',
+                padding: '0.1rem 0.35rem',
+                borderRadius: '0.25rem',
+                textTransform: 'uppercase',
+                marginTop: '0.1rem'
+              }}>
+                {role}
+              </span>
+            </div>
+            <button 
+              className="secondary danger" 
+              onClick={logout}
+              title="Cerrar Sesión"
+              style={{ padding: '0.5rem', borderRadius: '0.5rem' }}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -141,7 +181,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 { id: 'orders', label: 'Pedidos', icon: ShoppingBag, path: '/pedidos' },
                 { id: 'products', label: 'Productos', icon: Package, path: '/productos' },
                 { id: 'deliveries', label: 'Repartos', icon: Truck, path: '/repartos' },
-                { id: 'customers', label: 'Clientes', icon: Users, path: '/clientes' }
+                { id: 'customers', label: 'Clientes', icon: Users, path: '/clientes' },
+                { id: 'conversations', label: 'Conversaciones', icon: MessageSquare, path: '/conversaciones' }
               ].map((item, index) => (
                 <motion.div
                   key={item.id}
@@ -173,7 +214,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               ))}
             </nav>
 
-            <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+            <div style={{ marginTop: 'auto', paddingTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ 
+                background: 'rgba(255, 255, 255, 0.02)', 
+                border: '1px solid rgba(255, 255, 255, 0.05)', 
+                borderRadius: '0.75rem', 
+                padding: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
+                    {user?.email}
+                  </span>
+                  <span style={{ 
+                    fontSize: '0.625rem', 
+                    fontWeight: '700', 
+                    color: role === 'SUPERADMIN' ? '#10b981' : '#f59e0b',
+                    background: role === 'SUPERADMIN' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                    border: role === 'SUPERADMIN' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(245, 158, 11, 0.2)',
+                    padding: '0.1rem 0.35rem',
+                    borderRadius: '0.25rem',
+                    textTransform: 'uppercase',
+                    marginTop: '0.25rem',
+                    alignSelf: 'flex-start'
+                  }}>
+                    {role}
+                  </span>
+                </div>
+                <button 
+                  onClick={logout}
+                  className="secondary danger"
+                  style={{ padding: '0.5rem', borderRadius: '0.5rem' }}
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
+
               <button 
                 className="secondary" 
                 onClick={() => {

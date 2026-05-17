@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { AuthProvider } from "@/context/AuthContext";
+import AuthGuard from "@/components/AuthGuard";
 import { DashboardProvider } from "@/context/DashboardContext";
 
 export default function RootLayout({
@@ -30,9 +32,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body>
-        <DashboardProvider>
-          {children}
-        </DashboardProvider>
+        <AuthProvider>
+          <AuthGuard>
+            <DashboardProvider>
+              {children}
+            </DashboardProvider>
+          </AuthGuard>
+        </AuthProvider>
       </body>
     </html>
   );

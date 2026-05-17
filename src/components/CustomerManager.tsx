@@ -8,9 +8,11 @@ import EditableField from './ui/EditableField';
 import WhatsAppField from './ui/WhatsAppField';
 
 import { useDashboard } from '@/context/DashboardContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function CustomerManager() {
   const { customers, loading, fetchCustomers } = useDashboard();
+  const { role } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -173,9 +175,11 @@ export default function CustomerManager() {
                   </td>
                   <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                      <button onClick={() => handleDelete(customer.id)} style={{ color: 'rgba(239, 68, 68, 0.7)', background: 'none', border: 'none', cursor: 'pointer' }} className="hover-red">
-                        <Trash2 size={16} />
-                      </button>
+                      {role === 'SUPERADMIN' && (
+                        <button onClick={() => handleDelete(customer.id)} style={{ color: 'rgba(239, 68, 68, 0.7)', background: 'none', border: 'none', cursor: 'pointer' }} className="hover-red">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -6,8 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Delivery, Order } from '@/types';
 import ConfirmDialog from './ConfirmDialog';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 export default function DeliveryManager() {
+  const { role } = useAuth();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -311,16 +313,18 @@ export default function DeliveryManager() {
                     <option value="COMPLETED">Completado</option>
                   </select>
                   
-                  <button 
-                    className="secondary danger" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmDeleteId(delivery.id);
-                    }}
-                    style={{ padding: '0.4rem' }}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                   {role === 'SUPERADMIN' && (
+                    <button 
+                      className="secondary danger" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteId(delivery.id);
+                      }}
+                      style={{ padding: '0.4rem' }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                   
                   {expandedId === delivery.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                 </div>

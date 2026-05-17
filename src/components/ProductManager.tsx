@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Package, Plus, Trash2, Edit2, Check, X, Loader2, DollarSign, Tag, Calculator, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 interface Ingredient {
   id: string;
@@ -12,6 +13,7 @@ interface Ingredient {
 }
 
 export default function ProductManager() {
+  const { role } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -336,7 +338,9 @@ export default function ProductManager() {
                     ) : (
                       <>
                         <button onClick={() => handleEdit(product)} className="secondary" style={{ padding: '0.4rem' }}><Edit2 size={16} /></button>
-                        <button onClick={() => handleDelete(product.id)} className="secondary" style={{ padding: '0.4rem', color: 'var(--cancelled)' }}><Trash2 size={16} /></button>
+                        {role === 'SUPERADMIN' && (
+                          <button onClick={() => handleDelete(product.id)} className="secondary" style={{ padding: '0.4rem', color: 'var(--cancelled)' }}><Trash2 size={16} /></button>
+                        )}
                       </>
                     )}
                   </div>
@@ -367,7 +371,9 @@ export default function ProductManager() {
               {!editingId && (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button onClick={() => handleEdit(product)} className="secondary" style={{ padding: '0.4rem' }}><Edit2 size={16} /></button>
-                  <button onClick={() => handleDelete(product.id)} className="secondary" style={{ padding: '0.4rem', color: 'var(--cancelled)' }}><Trash2 size={16} /></button>
+                  {role === 'SUPERADMIN' && (
+                    <button onClick={() => handleDelete(product.id)} className="secondary" style={{ padding: '0.4rem', color: 'var(--cancelled)' }}><Trash2 size={16} /></button>
+                  )}
                 </div>
               )}
             </div>
