@@ -94,9 +94,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
       for (const orderId of selectedIds) {
         const { error } = await supabase
           .from('Order')
-          .update({ 
-            deliveryId, 
-            deliverySequence: nextSequence++ 
+          .update({
+            deliveryId,
+            deliverySequence: nextSequence++
           })
           .eq('id', orderId);
         if (error) throw error;
@@ -114,7 +114,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
 
   const handleCreateAndAssign = async () => {
     if (!newDeliveryName.trim() || selectedIds.length === 0) return;
-    
+
     setIsCreatingNew(true);
     try {
       // 1. Create the delivery
@@ -123,22 +123,22 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
         .insert({ name: newDeliveryName })
         .select()
         .single();
-      
+
       if (createError) throw createError;
-      
+
       // 2. Assign orders to it
       let nextSequence = 1;
       for (const orderId of selectedIds) {
         const { error } = await supabase
           .from('Order')
-          .update({ 
-            deliveryId: newDelivery.id, 
-            deliverySequence: nextSequence++ 
+          .update({
+            deliveryId: newDelivery.id,
+            deliverySequence: nextSequence++
           })
           .eq('id', orderId);
         if (error) throw error;
       }
-      
+
       setNewDeliveryName('');
       setSelectedIds([]);
       setShowAssignModal(false);
@@ -153,7 +153,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
   return (
     <div style={{ flex: 1 }}>
       <h3 style={{ marginBottom: '1.5rem', fontWeight: '700' }}>Gestión de Pedidos</h3>
-      
+
       {/* Desktop Table View */}
       <div className="card desktop-only">
         <div className="table-container">
@@ -161,9 +161,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
             <thead>
               <tr>
                 <th style={{ width: '40px' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={selectedIds.length === orders.length && orders.length > 0} 
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === orders.length && orders.length > 0}
                     onChange={toggleSelectAll}
                   />
                 </th>
@@ -189,9 +189,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
               {orders.map((order) => (
                 <tr key={order.id} className={selectedIds.includes(order.id) ? 'selected-row' : ''}>
                   <td>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedIds.includes(order.id)} 
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(order.id)}
                       onChange={() => toggleSelect(order.id)}
                     />
                   </td>
@@ -199,9 +199,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                     {order.orderNumber ? `#${order.orderNumber}` : '-'}
                   </td>
                   <td>
-                    <EditableField 
-                      value={order.customer?.name || order.customerName || ''} 
-                      onSave={(val: string) => onUpdate(order.id, { customerName: val })} 
+                    <EditableField
+                      value={order.customer?.name || order.customerName || ''}
+                      onSave={(val: string) => onUpdate(order.id, { customerName: val })}
                       fontWeight="600"
                     />
                     <div style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
@@ -209,9 +209,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                     </div>
                   </td>
                   <td>
-                    <WhatsAppField 
-                      value={order.customer?.whatsapp || order.whatsapp || ''} 
-                      onSave={(val: string) => onUpdate(order.id, { whatsapp: val })} 
+                    <WhatsAppField
+                      value={order.customer?.whatsapp || order.whatsapp || ''}
+                      onSave={(val: string) => onUpdate(order.id, { whatsapp: val })}
                     />
                   </td>
                   <td>
@@ -236,8 +236,8 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '120px' }}>
-                      <select 
-                        value={order.status} 
+                      <select
+                        value={order.status}
                         onChange={(e) => onUpdate(order.id, { status: e.target.value })}
                         className={`status-select status-${order.status}`}
                         style={{ padding: '0.4rem', fontSize: '0.8rem', width: '100%', borderRadius: '0.5rem' }}
@@ -249,9 +249,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                     </div>
                   </td>
                   <td>
-                    <EditableField 
-                      value={order.customer?.address || order.deliveryAddress || ''} 
-                      onSave={(val: string) => onUpdate(order.id, { deliveryAddress: val })} 
+                    <EditableField
+                      value={order.customer?.address || order.deliveryAddress || ''}
+                      onSave={(val: string) => onUpdate(order.id, { deliveryAddress: val })}
                       icon={MapPin}
                       placeholder="Sin dirección"
                       fontSize="0.85rem"
@@ -263,7 +263,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                       <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)' }}>
                         ${(order.productRef?.price || order.unitPrice || 0) * order.quantity}
                       </div>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onUpdate(order.id, { isPaid: !order.isPaid });
@@ -276,7 +276,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                     </div>
                   </td>
                   <td style={{ position: 'relative' }}>
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpenDropdownId(openDropdownId === order.id ? null : order.id);
@@ -289,7 +289,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
 
                     <AnimatePresence>
                       {openDropdownId === order.id && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: 10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 5, scale: 1 }}
                           exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -301,35 +301,34 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                             top: '100%',
                           }}
                         >
-                          <button 
+                          <button
                             className="dropdown-item"
                             onClick={() => { onUpdate(order.id, { isPaid: !order.isPaid }); setOpenDropdownId(null); }}
                           >
                             <Wallet size={16} /> Marcar como {order.isPaid ? 'Impago' : 'Pagado'}
                           </button>
-                          
-                          <button 
+
+                          <button
                             className="dropdown-item"
-                            onClick={() => { 
-                              setOrderToEdit(order); 
+                            onClick={() => {
+                              setOrderToEdit(order);
                               setIsModalOpen(true);
-                              setOpenDropdownId(null); 
+                              setOpenDropdownId(null);
                             }}
                           >
                             <Edit2 size={16} /> Editar Pedido
                           </button>
-                          
-                          {role === 'SUPERADMIN' && (
-                            <button 
-                              className="dropdown-item danger"
-                              onClick={() => { 
-                                setConfirmDeleteId(order.id);
-                                setOpenDropdownId(null); 
-                              }}
-                            >
-                              <Trash2 size={16} /> Eliminar Pedido
-                            </button>
-                          )}
+
+                          <button
+                            className="dropdown-item danger"
+                            onClick={() => {
+                              setConfirmDeleteId(order.id);
+                              setOpenDropdownId(null);
+                            }}
+                          >
+                            <Trash2 size={16} /> Eliminar Pedido
+                          </button>
+
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -356,9 +355,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   <span style={{ fontSize: '0.875rem', color: 'var(--muted)', fontWeight: '600' }}>
                     #{order.orderNumber}
                   </span>
-                  <EditableField 
-                    value={order.customerName || ''} 
-                    onSave={(val: string) => onUpdate(order.id, { customerName: val })} 
+                  <EditableField
+                    value={order.customerName || ''}
+                    onSave={(val: string) => onUpdate(order.id, { customerName: val })}
                     fontWeight="700"
                     fontSize="1.1rem"
                   />
@@ -369,13 +368,13 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                 <span className={`status-badge status-${order.status}`}>
-                  {order.status === 'PENDING' ? 'Pendiente' : 
-                   order.status === 'DELIVERED' ? 'Entregado' : 'Cancelado'}
+                  {order.status === 'PENDING' ? 'Pendiente' :
+                    order.status === 'DELIVERED' ? 'Entregado' : 'Cancelado'}
                 </span>
                 <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
                   ${(order.productRef?.price || order.unitPrice || 0) * order.quantity}
                 </div>
-                <button 
+                <button
                   onClick={() => onUpdate(order.id, { isPaid: !order.isPaid })}
                   className={`status-badge ${order.isPaid ? 'status-DELIVERED' : 'status-CANCELLED'}`}
                   style={{ border: 'none', fontSize: '0.7rem' }}
@@ -387,17 +386,17 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
 
             <div className="mobile-card-row">
               <span className="mobile-card-label">WhatsApp</span>
-              <WhatsAppField 
-                value={order.whatsapp || ''} 
-                onSave={(val: string) => onUpdate(order.id, { whatsapp: val })} 
+              <WhatsAppField
+                value={order.whatsapp || ''}
+                onSave={(val: string) => onUpdate(order.id, { whatsapp: val })}
               />
             </div>
 
             <div className="mobile-card-row">
               <span className="mobile-card-label">Dirección</span>
-              <EditableField 
-                value={order.deliveryAddress || ''} 
-                onSave={(val: string) => onUpdate(order.id, { deliveryAddress: val })} 
+              <EditableField
+                value={order.deliveryAddress || ''}
+                onSave={(val: string) => onUpdate(order.id, { deliveryAddress: val })}
                 icon={MapPin}
                 placeholder="Sin dirección"
                 fontSize="0.9rem"
@@ -419,8 +418,8 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
 
             <div className="mobile-card-actions" style={{ flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                <select 
-                  value={order.status} 
+                <select
+                  value={order.status}
                   onChange={(e) => onUpdate(order.id, { status: e.target.value })}
                   className={`status-select status-${order.status}`}
                   style={{ flex: 1 }}
@@ -429,25 +428,25 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   <option value="DELIVERED">Entregado</option>
                   <option value="CANCELLED">Cancelado</option>
                 </select>
-                
+
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button onClick={() => { setOrderToEdit(order); setIsModalOpen(true); }} className="secondary" style={{ padding: '0.5rem' }} title="Editar"><Edit2 size={18} /></button>
-                  {role === 'SUPERADMIN' && (
+                  {(role === 'SUPERADMIN' || role === 'ADMIN') && (
                     <button onClick={() => setConfirmDeleteId(order.id)} className="secondary" style={{ padding: '0.5rem', color: 'var(--cancelled)' }} title="Eliminar"><Trash2 size={18} /></button>
                   )}
                 </div>
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   setSelectedIds([order.id]);
                   setShowAssignModal(true);
                 }}
                 className="primary"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   gap: '0.5rem',
                   width: '100%',
                   padding: '0.75rem'
@@ -463,7 +462,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
       {/* Floating Bulk Actions Bar */}
       <AnimatePresence>
         {selectedIds.length > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
@@ -478,10 +477,10 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   Desmarcar todos
                 </button>
               </div>
-              
+
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <button 
-                  className="primary" 
+                <button
+                  className="primary"
                   onClick={() => setShowAssignModal(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
@@ -497,7 +496,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
       <AnimatePresence>
         {showAssignModal && (
           <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -511,18 +510,18 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   <X size={20} />
                 </button>
               </div>
-              
+
               <p style={{ marginBottom: '1.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>
                 Selecciona un reparto para asignar los {selectedIds.length} pedidos seleccionados.
               </p>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto', marginBottom: '1.5rem' }}>
                 {deliveries.length === 0 ? (
                   <p style={{ textAlign: 'center', padding: '1rem', color: 'var(--muted)' }}>No hay repartos disponibles.</p>
                 ) : (
                   deliveries.map(d => (
-                    <button 
-                      key={d.id} 
+                    <button
+                      key={d.id}
                       className="delivery-option"
                       onClick={() => handleAssignToDelivery(d.id)}
                       disabled={isAssigning || isCreatingNew}
@@ -540,9 +539,9 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
               <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: '1.5rem', marginTop: '0.5rem' }}>
                 <h4 style={{ fontSize: '0.875rem', fontWeight: '700', marginBottom: '1rem' }}>Crear nuevo reparto y asignar</h4>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input 
-                    type="text" 
-                    placeholder="Nombre del nuevo reparto..." 
+                  <input
+                    type="text"
+                    placeholder="Nombre del nuevo reparto..."
                     value={newDeliveryName}
                     onChange={(e) => setNewDeliveryName(e.target.value)}
                     onKeyDown={(e) => {
@@ -550,8 +549,8 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                     }}
                     style={{ flex: 1 }}
                   />
-                  <button 
-                    className="primary" 
+                  <button
+                    className="primary"
                     onClick={handleCreateAndAssign}
                     disabled={!newDeliveryName.trim() || isAssigning || isCreatingNew}
                     style={{ padding: '0.5rem 1rem' }}
@@ -560,7 +559,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   </button>
                 </div>
               </div>
-              
+
               <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                 <button className="secondary" style={{ flex: 1 }} onClick={() => setShowAssignModal(false)}>Cerrar</button>
               </div>
@@ -569,7 +568,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
         )}
       </AnimatePresence>
 
-      <ConfirmDialog 
+      <ConfirmDialog
         isOpen={!!confirmDeleteId}
         title="¿Eliminar pedido?"
         message="Esta acción no se puede deshacer. El pedido será borrado permanentemente del sistema."

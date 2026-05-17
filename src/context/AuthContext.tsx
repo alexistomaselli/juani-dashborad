@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<'SUPERADMIN' | 'ADMIN' | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar sesión inicial y escuchar cambios de estado de forma robusta
+  // Cargar sesión inicial y escuchar cambios de estado de forma unificada y robusta
   useEffect(() => {
     let mounted = true;
 
@@ -71,34 +71,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    async function initializeAuth() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          await handleSession(session);
-        }
-      } catch (err) {
-        console.error('Error al verificar sesión inicial:', err);
-        if (mounted) {
-          setUser(null);
-          setRole(null);
-          setLoading(false);
-        }
-      }
-    }
-
-    // Inicializar sesión de forma síncrona/asíncrona inmediata
-    initializeAuth();
-
-    // Registrar oyente para futuros cambios de estado
+    // Registrar oyente único de cambios de estado (se dispara inmediatamente con INITIAL_SESSION/SIGNED_IN)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
+      
+      console.log('Evento de autenticación de Supabase recibido:', event);
       
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setRole(null);
         setLoading(false);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      } else {
+        // Cubre INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, etc.
         await handleSession(session);
       }
     });
