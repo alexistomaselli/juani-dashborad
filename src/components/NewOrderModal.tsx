@@ -307,7 +307,7 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
                 {showDropdown && (
                   <div style={{
                     position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-                    background: 'var(--card-bg)', border: '1px solid var(--border)',
+                    background: 'var(--card)', border: '1px solid var(--card-border)',
                     borderRadius: '0.75rem', zIndex: 100, overflow: 'hidden',
                     boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
                   }}>
@@ -322,7 +322,7 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
                           onClick={() => handleSelectCustomer(c)}
                           style={{
                             padding: '0.75rem 1rem', cursor: 'pointer',
-                            borderBottom: '1px solid var(--border)',
+                            borderBottom: '1px solid var(--card-border)',
                             transition: 'background 0.15s'
                           }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(139,92,246,0.08)')}
