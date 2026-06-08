@@ -17,7 +17,7 @@ export default function ProductManager() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', unitsPerPackage: '', price: '', cost: '' });
+  const [editForm, setEditForm] = useState({ name: '', unitsPerPackage: '', price: '', cost: '', description: '', agentInstructions: '' });
   const [isAdding, setIsAdding] = useState(false);
   
   // Calculator state
@@ -51,7 +51,9 @@ export default function ProductManager() {
       name: product.name,
       unitsPerPackage: product.unitsPerPackage.toString(),
       price: product.price.toString(),
-      cost: product.cost.toString()
+      cost: product.cost.toString(),
+      description: product.description || '',
+      agentInstructions: product.agentInstructions || ''
     });
     setCalcUnitsPerPack(product.unitsPerPackage.toString());
   };
@@ -65,6 +67,8 @@ export default function ProductManager() {
           unitsPerPackage: parseInt(editForm.unitsPerPackage),
           price: parseFloat(editForm.price),
           cost: parseFloat(editForm.cost),
+          description: editForm.description,
+          agentInstructions: editForm.agentInstructions,
           updatedAt: new Date().toISOString()
         })
         .eq('id', id);
@@ -86,13 +90,15 @@ export default function ProductManager() {
           name: editForm.name,
           unitsPerPackage: parseInt(editForm.unitsPerPackage),
           price: parseFloat(editForm.price),
-          cost: parseFloat(editForm.cost)
+          cost: parseFloat(editForm.cost),
+          description: editForm.description,
+          agentInstructions: editForm.agentInstructions
         });
 
       if (error) throw error;
 
       setIsAdding(false);
-      setEditForm({ name: '', unitsPerPackage: '1', price: '', cost: '' });
+      setEditForm({ name: '', unitsPerPackage: '1', price: '', cost: '', description: '', agentInstructions: '' });
       fetchProducts();
     } catch (error) {
       console.error('Error adding product:', error);
@@ -164,7 +170,7 @@ export default function ProductManager() {
           <h3 style={{ fontWeight: '700' }}>Catálogo de Productos</h3>
         </div>
         {!isAdding && (
-          <button onClick={() => { setIsAdding(true); setEditForm({ name: '', unitsPerPackage: '6', price: '', cost: '' }); setCalcUnitsPerPack('6'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button onClick={() => { setIsAdding(true); setEditForm({ name: '', unitsPerPackage: '6', price: '', cost: '', description: '', agentInstructions: '' }); setCalcUnitsPerPack('6'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Plus size={18} /> Nuevo Producto
           </button>
         )}
@@ -271,7 +277,11 @@ export default function ProductManager() {
             
             {isAdding && (
               <tr style={{ background: 'rgba(139, 92, 246, 0.05)' }}>
-                <td><input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Ej: Pizzetas" /></td>
+                <td>
+                  <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Ej: Pizzetas" style={{ marginBottom: '0.5rem', width: '100%' }} />
+                  <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} placeholder="Descripción pública (ej: sabor, salsa)" rows={2} style={{ width: '100%', fontSize: '0.8rem', padding: '0.4rem', marginBottom: '0.5rem' }} />
+                  <textarea value={editForm.agentInstructions} onChange={e => setEditForm({...editForm, agentInstructions: e.target.value})} placeholder="Instrucciones ocultas para el Bot (cantidades, reglas)" rows={2} style={{ width: '100%', fontSize: '0.8rem', padding: '0.4rem', borderColor: 'var(--accent)' }} />
+                </td>
                 <td><span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Activo</span></td>
                 <td><input type="number" value={editForm.unitsPerPackage} onChange={e => { setEditForm({...editForm, unitsPerPackage: e.target.value}); setCalcUnitsPerPack(e.target.value); }} placeholder="Unidades x pack" /></td>
                 <td><input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} placeholder="Precio" /></td>
@@ -295,8 +305,16 @@ export default function ProductManager() {
               <tr key={product.id} style={{ opacity: product.active ? 1 : 0.65 }}>
                 <td>
                   {editingId === product.id ? 
-                    <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /> : 
-                    <span style={{ fontWeight: '600' }}>{product.name}</span>
+                    <>
+                      <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ marginBottom: '0.5rem', width: '100%' }} />
+                      <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} placeholder="Descripción pública (ej: sabor, salsa)" rows={2} style={{ width: '100%', fontSize: '0.8rem', padding: '0.4rem', marginBottom: '0.5rem' }} />
+                      <textarea value={editForm.agentInstructions} onChange={e => setEditForm({...editForm, agentInstructions: e.target.value})} placeholder="Instrucciones ocultas para el Bot (cantidades, reglas)" rows={2} style={{ width: '100%', fontSize: '0.8rem', padding: '0.4rem', borderColor: 'var(--accent)' }} />
+                    </> : 
+                    <>
+                      <div style={{ fontWeight: '600' }}>{product.name}</div>
+                      {product.description && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.2rem', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={product.description}>Público: {product.description}</div>}
+                      {product.agentInstructions && <div style={{ fontSize: '0.75rem', color: 'var(--accent)', marginTop: '0.2rem', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={product.agentInstructions}>Bot: {product.agentInstructions}</div>}
+                    </>
                   }
                 </td>
                 <td>
@@ -385,8 +403,16 @@ export default function ProductManager() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
               <div>
                 {editingId === product.id ? 
-                  <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ marginBottom: '0.5rem' }} /> : 
-                  <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{product.name}</div>
+                  <>
+                    <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ marginBottom: '0.5rem', width: '100%' }} placeholder="Nombre" />
+                    <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} style={{ marginBottom: '0.5rem', width: '100%', fontSize: '0.8rem', padding: '0.4rem' }} placeholder="Descripción pública (ej: sabor)" rows={2} />
+                    <textarea value={editForm.agentInstructions} onChange={e => setEditForm({...editForm, agentInstructions: e.target.value})} style={{ marginBottom: '0.5rem', width: '100%', fontSize: '0.8rem', padding: '0.4rem', borderColor: 'var(--accent)' }} placeholder="Instrucciones ocultas para el Bot" rows={2} />
+                  </> : 
+                  <>
+                    <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{product.name}</div>
+                    {product.description && <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: '0.2rem' }}>Público: {product.description}</div>}
+                    {product.agentInstructions && <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: '0.2rem' }}>Bot: {product.agentInstructions}</div>}
+                  </>
                 }
                 <div style={{ fontSize: '0.875rem', color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
                   {editingId === product.id ? (
