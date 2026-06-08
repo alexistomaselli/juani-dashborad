@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import KPIs from '@/components/KPIs';
-import { ChefHat, RefreshCcw, Menu, X, Package, Users, LayoutDashboard, ChevronDown, Plus, Truck, ShoppingBag, LogOut, MessageSquare } from 'lucide-react';
+import { ChefHat, RefreshCcw, Menu, X, Package, Users, LayoutDashboard, ChevronDown, Plus, Truck, ShoppingBag, LogOut, MessageSquare, Settings } from 'lucide-react';
 import NewOrderModal from '@/components/NewOrderModal';
 import { useDashboard } from '@/context/DashboardContext';
 import { useAuth } from '@/context/AuthContext';
@@ -117,6 +117,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/repartos">
             <button className={activeTab === 'deliveries' ? 'primary' : 'secondary'} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Truck size={16} /> Repartos
+            </button>
+          </Link>
+          <Link href="/configuracion">
+            <button className={activeTab === 'settings' ? 'primary' : 'secondary'} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Settings size={16} /> Configuración
             </button>
           </Link>
           <button className="secondary" onClick={fetchOrders} title="Actualizar Datos">
