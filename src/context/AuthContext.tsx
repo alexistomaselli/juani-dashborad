@@ -71,25 +71,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Registrar oyente único de cambios de estado (se dispara inmediatamente con INITIAL_SESSION/SIGNED_IN)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
-      
-      console.log('Evento de autenticación de Supabase recibido:', event);
-      
-      if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setRole(null);
-        setLoading(false);
-      } else {
-        // Cubre INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, etc.
-        await handleSession(session);
-      }
-    });
+    let subscription: any = null;
+
+    async function initializeAuth() {
+      // 1. Obtener la sesión actual de forma proactiva (Evita colgarse si onAuthStateChange falla en StrictMode)
+      const { data: { session } } = await supabase.auth.getSession();
+      await handleSession(session);
+
+      // 2. Escuchar futuros cambios
+      const { data } = supabase.auth.onAuthStateChange(async (event, sessionEvent) => {
+        if (!mounted) return;
+        console.log('Evento de autenticación de Supabase recibido:', event);
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setRole(null);
+          setLoading(false);
+        } else if (event !== 'INITIAL_SESSION') {
+          // Ignoramos INITIAL_SESSION porque ya lo cubrimos con getSession() arriba
+          await handleSession(sessionEvent);
+        }
+      });
+      subscription = data.subscription;
+    }
+
+    initializeAuth();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
