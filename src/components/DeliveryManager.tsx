@@ -21,7 +21,7 @@ export default function DeliveryManager() {
 
   const fetchDeliveries = async () => {
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from('Delivery')
         .select(`
           *,
@@ -31,18 +31,28 @@ export default function DeliveryManager() {
           )
         `)
         .order('createdAt', { ascending: false });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TIMEOUT_SUPABASE')), 8000)
+      );
+
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as any;
+      const { data, error } = response;
       
       if (error) throw error;
 
       // Sort orders within each delivery by sequence
-      const processedData = (data || []).map(d => ({
+      const processedData = (data || []).map((d: any) => ({
         ...d,
         orders: (d.orders || []).sort((a: any, b: any) => (a.sequence || 0) - (b.sequence || 0))
       }));
 
       setDeliveries(processedData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching deliveries:', error);
+      if (error.message === 'TIMEOUT_SUPABASE') {
+        alert('Se acabó el tiempo de espera cargando los repartos. Verificá tu conexión a internet o recargá la página.');
+      }
     } finally {
       setLoading(false);
     }
