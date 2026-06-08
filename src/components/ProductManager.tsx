@@ -30,7 +30,6 @@ export default function ProductManager() {
       const { data, error } = await supabase
         .from('Product')
         .select('*')
-        .eq('active', true)
         .order('name');
       
       if (error) throw error;
@@ -114,6 +113,19 @@ export default function ProductManager() {
     }
   };
 
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('Product')
+        .update({ active: !currentStatus, updatedAt: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      fetchProducts();
+    } catch (error) {
+      console.error('Error toggling product active state:', error);
+    }
+  };
+
   // Calculator Logic
   const addIngredient = () => {
     setCalcIngredients([...calcIngredients, { id: Date.now().toString(), name: '', price: '', yield: '' }]);
@@ -164,6 +176,7 @@ export default function ProductManager() {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Estado</th>
               <th>Estructura</th>
               <th>Precio Venta</th>
               <th>Costo Prod.</th>
@@ -259,6 +272,7 @@ export default function ProductManager() {
             {isAdding && (
               <tr style={{ background: 'rgba(139, 92, 246, 0.05)' }}>
                 <td><input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Ej: Pizzetas" /></td>
+                <td><span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Activo</span></td>
                 <td><input type="number" value={editForm.unitsPerPackage} onChange={e => { setEditForm({...editForm, unitsPerPackage: e.target.value}); setCalcUnitsPerPack(e.target.value); }} placeholder="Unidades x pack" /></td>
                 <td><input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} placeholder="Precio" /></td>
                 <td>
@@ -278,12 +292,25 @@ export default function ProductManager() {
               </tr>
             )}
             {products.map(product => (
-              <tr key={product.id}>
+              <tr key={product.id} style={{ opacity: product.active ? 1 : 0.65 }}>
                 <td>
                   {editingId === product.id ? 
                     <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} /> : 
                     <span style={{ fontWeight: '600' }}>{product.name}</span>
                   }
+                </td>
+                <td>
+                  <label className="switch" style={{ verticalAlign: 'middle' }}>
+                    <input
+                      type="checkbox"
+                      checked={product.active}
+                      onChange={() => handleToggleActive(product.id, product.active)}
+                    />
+                    <span className="slider"></span>
+                  </label>
+                  <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: product.active ? 'var(--primary)' : 'var(--muted)' }}>
+                    {product.active ? 'Activo' : 'Inactivo'}
+                  </span>
                 </td>
                 <td>
                   {editingId === product.id ? 
@@ -354,18 +381,38 @@ export default function ProductManager() {
       {/* Mobile Card View */}
       <div className="mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {products.map(product => (
-          <div key={product.id} className="card" style={{ padding: '1rem', border: editingId === product.id ? '1px solid var(--accent)' : '1px solid var(--card-border)' }}>
+          <div key={product.id} className="card" style={{ padding: '1rem', opacity: product.active ? 1 : 0.65, border: editingId === product.id ? '1px solid var(--accent)' : '1px solid var(--card-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
               <div>
                 {editingId === product.id ? 
                   <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ marginBottom: '0.5rem' }} /> : 
                   <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{product.name}</div>
                 }
-                <div style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
-                  {editingId === product.id ? 
-                    <input type="number" value={editForm.unitsPerPackage} onChange={e => setEditForm({...editForm, unitsPerPackage: e.target.value})} /> : 
-                    `Estructura: ${product.unitsPerPackage} un. / pack`
-                  }
+                <div style={{ fontSize: '0.875rem', color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.25rem' }}>
+                  {editingId === product.id ? (
+                    <div>
+                      <label style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>Unidades por pack</label>
+                      <input type="number" value={editForm.unitsPerPackage} onChange={e => setEditForm({...editForm, unitsPerPackage: e.target.value})} />
+                    </div>
+                  ) : (
+                    <span>Estructura: {product.unitsPerPackage} un. / pack</span>
+                  )}
+                  
+                  {!editingId && (
+                    <label className="switch-container" style={{ marginTop: '0.25rem' }}>
+                      <span className="switch">
+                        <input
+                          type="checkbox"
+                          checked={product.active}
+                          onChange={() => handleToggleActive(product.id, product.active)}
+                        />
+                        <span className="slider"></span>
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: product.active ? 'var(--primary)' : 'var(--muted)' }}>
+                        {product.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </label>
+                  )}
                 </div>
               </div>
               {!editingId && (
