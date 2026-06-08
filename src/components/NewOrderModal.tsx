@@ -161,14 +161,19 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
         }).eq('id', customerId);
       }
 
+      const quantity = parseInt(form.quantity);
+      const unitPrice = selectedProduct?.price || orderToEdit?.unitPrice || 0;
+      const unitCost = selectedProduct?.cost || orderToEdit?.unitCost || 0;
+
       const orderData = {
         customerName: form.customerName,
         whatsapp: form.whatsapp,
         productId: form.productId,
         product: selectedProduct?.name || orderToEdit?.product || '',
-        quantity: parseInt(form.quantity),
-        price: selectedProduct?.price || orderToEdit?.price || 0,
-        cost: selectedProduct?.cost || orderToEdit?.cost || 0,
+        quantity,
+        unitPrice,
+        unitCost,
+        totalAmount: quantity * unitPrice,
         isPaid: form.isPaid,
         deliveryAddress: form.deliveryAddress,
         customerId,
