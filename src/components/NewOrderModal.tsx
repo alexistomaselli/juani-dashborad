@@ -123,20 +123,16 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
     if (!form.customerName || !form.productId || !form.quantity) return;
 
     setSubmitting(true);
-    console.log('--- STARTING SUBMIT ---');
     try {
       const selectedProduct = products.find(p => p.id === form.productId);
       let customerId = selectedCustomerId || orderToEdit?.customerId || null;
-      console.log('Customer ID:', customerId);
 
       if (!customerId) {
         if (form.whatsapp) {
-          console.log('Searching existing customer by whatsapp...');
           const { data: existing, error: err1 } = await supabase
             .from('Customer').select('id').eq('whatsapp', form.whatsapp).maybeSingle();
           
           if (existing) {
-            console.log('Found existing customer:', existing.id);
             customerId = existing.id;
             await supabase.from('Customer').update({
               name: form.customerName,
@@ -144,21 +140,18 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
               updatedAt: new Date().toISOString()
             }).eq('id', customerId);
           } else {
-            console.log('Creating new customer with whatsapp...');
             const { data: newC, error: err2 } = await supabase.from('Customer')
               .insert({ name: form.customerName, whatsapp: form.whatsapp, address: form.deliveryAddress })
               .select('id').single();
             if (newC) customerId = newC.id;
           }
         } else {
-          console.log('Creating new customer without whatsapp...');
           const { data: newC } = await supabase.from('Customer')
             .insert({ name: form.customerName, address: form.deliveryAddress })
             .select('id').single();
           if (newC) customerId = newC.id;
         }
       } else {
-        console.log('Updating existing selected customer...', customerId);
         await supabase.from('Customer').update({
           name: form.customerName,
           whatsapp: form.whatsapp || null,
@@ -167,7 +160,6 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
         }).eq('id', customerId);
       }
 
-      console.log('Preparing orderData...');
       const quantity = parseInt(form.quantity);
       const unitPrice = selectedProduct?.price || orderToEdit?.unitPrice || 0;
       const unitCost = selectedProduct?.cost || orderToEdit?.unitCost || 0;
@@ -187,21 +179,15 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
         updatedAt: new Date().toISOString()
       };
       
-      console.log('orderData:', orderData);
-
       let result;
       if (orderToEdit) {
-        console.log('Updating existing order...');
         result = await supabase.from('Order').update(orderData).eq('id', orderToEdit.id);
       } else {
-        console.log('Fetching max orderNumber...');
         const { data: maxOrder } = await supabase
           .from('Order').select('orderNumber').order('orderNumber', { ascending: false }).limit(1);
         
         const nextNumber = (maxOrder?.[0]?.orderNumber || 0) + 1;
-        console.log('Assigned nextNumber:', nextNumber);
         
-        console.log('Inserting new order...');
         result = await supabase.from('Order').insert({
           ...orderData,
           orderNumber: nextNumber,
@@ -210,18 +196,15 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
         });
       }
 
-      console.log('Result from DB:', result);
       if (result.error) throw result.error;
 
-      console.log('Order saved successfully, closing modal...');
       setForm({ customerName: '', whatsapp: '', productId: '', quantity: '1', isPaid: false, deliveryAddress: '' });
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Error saving order (caught in catch):', error);
+      console.error('Error saving order:', error);
       alert(`Error al guardar el pedido: ${error?.message || JSON.stringify(error)}`);
     } finally {
-      console.log('--- FINISHED SUBMIT ---');
       setSubmitting(false);
     }
   };
