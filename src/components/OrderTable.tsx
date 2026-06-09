@@ -67,7 +67,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
         },
         body: JSON.stringify({
           whatsapp,
-          message: `Hola${order.customerName ? ` ${order.customerName.split(' ')[0]}` : ''}! 🚚 Estamos coordinando los pedidos. ¿Te encontramos en tu domicilio hoy?`,
+          message: `Hola${order.customerName ? ` ${order.customerName.split(' ')[0]}` : ''}! 🚚 Estamos coordinando los pedidos`,
         }),
       });
 
