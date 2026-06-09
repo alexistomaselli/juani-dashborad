@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Phone, Package, Calendar, Edit2, Trash2, MoreVertical, Check, X, Wallet, MapPin, ExternalLink, Truck } from 'lucide-react';
+import { Phone, Package, Calendar, Edit2, Trash2, MoreVertical, Check, X, Wallet, MapPin, ExternalLink, Truck, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EditableField from './ui/EditableField';
 import WhatsAppField from './ui/WhatsAppField';
@@ -30,6 +30,57 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [newDeliveryName, setNewDeliveryName] = useState('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [coordinatingId, setCoordinatingId] = useState<string | null>(null);
+
+  const handleCoordinate = async (order: OrderWithProduct) => {
+    const whatsapp = order.customer?.whatsapp || order.whatsapp;
+    if (!whatsapp) {
+      alert('Este pedido no tiene número de WhatsApp.');
+      return;
+    }
+
+    setCoordinatingId(order.id);
+    setOpenDropdownId(null);
+
+    try {
+      // 1. Poner al cliente en modo COORDINATING
+      const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || 'https://juani-agent.dydlabs.com';
+      const secret = process.env.NEXT_PUBLIC_OPERATOR_SECRET || 'juani-cocina2009';
+
+      const modeRes = await fetch(`${agentUrl}/modo/${whatsapp}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-operator-secret': secret,
+        },
+        body: JSON.stringify({ mode: 'COORDINATING' }),
+      });
+
+      if (!modeRes.ok) throw new Error('Error al cambiar el modo');
+
+      // 2. Enviar mensaje predeterminado vía el agente
+      const msgRes = await fetch(`${agentUrl}/send-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-operator-secret': secret,
+        },
+        body: JSON.stringify({
+          whatsapp,
+          message: `Hola${order.customerName ? ` ${order.customerName.split(' ')[0]}` : ''}! 🚚 Estamos coordinando los pedidos. ¿Te encontramos en tu domicilio hoy?`,
+        }),
+      });
+
+      if (!msgRes.ok) throw new Error('Error al enviar el mensaje');
+
+      alert(`✅ Modo COORDINATING activado y mensaje enviado a ${order.customerName || whatsapp}`);
+    } catch (err: any) {
+      console.error('Error en coordinar envío:', err);
+      alert(`❌ Error: ${err.message}`);
+    } finally {
+      setCoordinatingId(null);
+    }
+  };
 
   // Close dropdown when clicking anywhere
   useEffect(() => {
@@ -320,6 +371,16 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                           </button>
 
                           <button
+                            className="dropdown-item"
+                            onClick={() => handleCoordinate(order)}
+                            disabled={coordinatingId === order.id}
+                            style={{ color: '#f59e0b' }}
+                          >
+                            <MessageSquare size={16} />
+                            {coordinatingId === order.id ? 'Enviando...' : '📦 Coordinar Envío'}
+                          </button>
+
+                          <button
                             className="dropdown-item danger"
                             onClick={() => {
                               setConfirmDeleteId(order.id);
@@ -453,6 +514,29 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                 }}
               >
                 <Truck size={18} /> Asignar a Reparto
+              </button>
+
+              <button
+                onClick={() => handleCoordinate(order)}
+                disabled={coordinatingId === order.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  width: '100%',
+                  padding: '0.75rem',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  borderRadius: '0.75rem',
+                  color: '#f59e0b',
+                  fontWeight: '600',
+                  cursor: coordinatingId === order.id ? 'not-allowed' : 'pointer',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <MessageSquare size={18} />
+                {coordinatingId === order.id ? 'Enviando...' : '📦 Coordinar Envío'}
               </button>
             </div>
           </div>
