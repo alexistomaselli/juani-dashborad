@@ -31,6 +31,54 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
   const [newDeliveryName, setNewDeliveryName] = useState('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [coordinatingId, setCoordinatingId] = useState<string | null>(null);
+  // chat_mode local: inicializado desde los datos del cliente, actualizable sin refetch
+  const [chatModes, setChatModes] = useState<Record<string, string>>({});
+  const [togglingPauseId, setTogglingPauseId] = useState<string | null>(null);
+
+  // Sincronizar chatModes cuando llegan nuevas órdenes
+  useEffect(() => {
+    const initial: Record<string, string> = {};
+    orders.forEach(o => {
+      const key = o.customer?.whatsapp || o.whatsapp;
+      if (key) initial[key] = o.customer?.chat_mode || 'NORMAL';
+    });
+    setChatModes(prev => ({ ...initial, ...prev }));
+  }, [orders]);
+
+  const isPaused = (order: OrderWithProduct) => {
+    const key = order.customer?.whatsapp || order.whatsapp;
+    return key ? (chatModes[key] || 'NORMAL') !== 'NORMAL' : false;
+  };
+
+  const handleTogglePause = async (order: OrderWithProduct, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const whatsapp = order.customer?.whatsapp || order.whatsapp;
+    if (!whatsapp) return;
+
+    setTogglingPauseId(order.id);
+    setOpenDropdownId(null);
+
+    const currently = chatModes[whatsapp] || 'NORMAL';
+    const newMode = currently === 'NORMAL' ? 'COORDINATING' : 'NORMAL';
+
+    const agentUrl = process.env.NEXT_PUBLIC_AGENT_URL || 'https://juani-agent.dydlabs.com';
+    const secret = process.env.NEXT_PUBLIC_OPERATOR_SECRET || 'juani-cocina2009';
+
+    try {
+      const res = await fetch(`${agentUrl}/modo/${whatsapp}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-operator-secret': secret },
+        body: JSON.stringify({ mode: newMode }),
+      });
+      if (!res.ok) throw new Error('Error al cambiar el modo');
+      setChatModes(prev => ({ ...prev, [whatsapp]: newMode }));
+    } catch (err: any) {
+      console.error('Error al pausar/reanudar agente:', err);
+      alert(`❌ Error: ${err.message}`);
+    } finally {
+      setTogglingPauseId(null);
+    }
+  };
 
   const handleCoordinate = async (order: OrderWithProduct) => {
     const whatsapp = order.customer?.whatsapp || order.whatsapp;
@@ -381,6 +429,19 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                           </button>
 
                           <button
+                            className="dropdown-item"
+                            onClick={(e) => handleTogglePause(order, e)}
+                            disabled={togglingPauseId === order.id}
+                            style={{ color: isPaused(order) ? '#10b981' : '#ef4444' }}
+                          >
+                            {togglingPauseId === order.id
+                              ? '...' 
+                              : isPaused(order)
+                              ? '🤖 Reanudar Agente'
+                              : '⏸️ Pausar Agente'}
+                          </button>
+
+                          <button
                             className="dropdown-item danger"
                             onClick={() => {
                               setConfirmDeleteId(order.id);
@@ -431,6 +492,31 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                 <span className={`status-badge status-${order.status}`}>
                   {order.status === 'PENDING' ? 'Pendiente' :
                     order.status === 'DELIVERED' ? 'Entregado' : 'Cancelado'}
+                </span>
+                {/* Badge de estado del agente */}
+                <span
+                  title={isPaused(order) ? 'Agente pausado - conversación humana' : 'Agente activo'}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                    fontSize: '0.65rem',
+                    fontWeight: '700',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '999px',
+                    background: isPaused(order) ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.12)',
+                    color: isPaused(order) ? '#ef4444' : '#10b981',
+                    border: `1px solid ${isPaused(order) ? 'rgba(239,68,68,0.35)' : 'rgba(16,185,129,0.3)'}`,
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                  }}
+                  onClick={(e) => handleTogglePause(order, e)}
+                >
+                  {togglingPauseId === order.id
+                    ? '...'
+                    : isPaused(order)
+                    ? '⏸ Pausado'
+                    : '🤖 Activo'}
                 </span>
                 <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
                   ${(order.productRef?.price || order.unitPrice || 0) * order.quantity}
@@ -516,28 +602,58 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                 <Truck size={18} /> Asignar a Reparto
               </button>
 
-              <button
-                onClick={() => handleCoordinate(order)}
-                disabled={coordinatingId === order.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  width: '100%',
-                  padding: '0.75rem',
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  border: '1px solid rgba(245, 158, 11, 0.4)',
-                  borderRadius: '0.75rem',
-                  color: '#f59e0b',
-                  fontWeight: '600',
-                  cursor: coordinatingId === order.id ? 'not-allowed' : 'pointer',
-                  fontSize: '0.9rem',
-                }}
-              >
-                <MessageSquare size={18} />
-                {coordinatingId === order.id ? 'Enviando...' : '📦 Coordinar Envío'}
-              </button>
+              {/* Botones: Coordinar + Pausar en una fila */}
+              <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                <button
+                  onClick={() => handleCoordinate(order)}
+                  disabled={coordinatingId === order.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    flex: 1,
+                    padding: '0.7rem 0.5rem',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: '0.75rem',
+                    color: '#f59e0b',
+                    fontWeight: '600',
+                    cursor: coordinatingId === order.id ? 'not-allowed' : 'pointer',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  <MessageSquare size={15} />
+                  {coordinatingId === order.id ? '...' : '📦 Coordinar'}
+                </button>
+
+                <button
+                  onClick={(e) => handleTogglePause(order, e)}
+                  disabled={togglingPauseId === order.id}
+                  title={isPaused(order) ? 'Reanudar agente' : 'Pausar agente'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    padding: '0.7rem 1rem',
+                    background: isPaused(order) ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)',
+                    border: `1px solid ${isPaused(order) ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                    borderRadius: '0.75rem',
+                    color: isPaused(order) ? '#10b981' : '#ef4444',
+                    fontWeight: '700',
+                    cursor: togglingPauseId === order.id ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {togglingPauseId === order.id
+                    ? '...'
+                    : isPaused(order)
+                    ? '🤖 Activo'
+                    : '⏸ Pausar'}
+                </button>
+              </div>
             </div>
           </div>
         ))}

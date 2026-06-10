@@ -9,6 +9,8 @@ export interface Customer {
   name: string;
   whatsapp: string | null;
   address: string | null;
+  chat_mode: 'NORMAL' | 'COORDINATING' | 'DELIVERING' | null;
+  chat_mode_updated_at: string | null;
   createdAt: string;
   updatedAt: string;
 }
