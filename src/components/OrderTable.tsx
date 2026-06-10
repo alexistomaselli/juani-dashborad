@@ -650,7 +650,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   {togglingPauseId === order.id
                     ? '...'
                     : isPaused(order)
-                    ? '🤖 Activo'
+                    ? '▶ Reanudar'
                     : '⏸ Pausar'}
                 </button>
               </div>
