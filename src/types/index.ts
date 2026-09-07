@@ -61,3 +61,14 @@ export type OrderWithProduct = Order & {
   productRef?: Product | null;
 };
 
+export interface StoreSettings {
+  id: string;
+  isVacationMode: boolean;
+  vacationMessage: string;
+  deliveryDaysInfo: string;
+  isDeliveryActive: boolean;
+  pickupDaysInfo?: string;
+  pickupAddress?: string;
+  updatedAt?: string;
+}
+

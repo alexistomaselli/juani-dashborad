@@ -74,9 +74,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let subscription: any = null;
 
     async function initializeAuth() {
-      // 1. Obtener la sesión actual de forma proactiva (Evita colgarse si onAuthStateChange falla en StrictMode)
-      const { data: { session } } = await supabase.auth.getSession();
-      await handleSession(session);
+      try {
+        // 1. Obtener la sesión actual de forma proactiva con manejo de tokens inválidos/expirados
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('Sesión anterior expirada o refresh token inválido:', error.message);
+          await supabase.auth.signOut().catch(() => {});
+          if (mounted) {
+            setUser(null);
+            setRole(null);
+            setLoading(false);
+          }
+          return;
+        }
+        await handleSession(data?.session);
+      } catch (err: any) {
+        console.warn('Error al inicializar sesión:', err);
+        await supabase.auth.signOut().catch(() => {});
+        if (mounted) {
+          setUser(null);
+          setRole(null);
+          setLoading(false);
+        }
+      }
 
       // 2. Escuchar futuros cambios
       const { data } = supabase.auth.onAuthStateChange(async (event, sessionEvent) => {
@@ -87,7 +107,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setRole(null);
           setLoading(false);
         } else if (event !== 'INITIAL_SESSION') {
-          // Ignoramos INITIAL_SESSION porque ya lo cubrimos con getSession() arriba
           await handleSession(sessionEvent);
         }
       });

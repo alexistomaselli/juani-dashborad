@@ -49,3 +49,6 @@ prisma/*.db-journal
 # backups and local temporary files
 /backups/
 /scratch/
+
+# Supabase MCP info
+supabase-mcp-info.md
