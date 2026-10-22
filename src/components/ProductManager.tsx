@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Package, Plus, Trash2, Edit2, Check, X, Loader2, DollarSign, Tag, Calculator, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
+import StockEditor from './StockEditor';
 
 interface Ingredient {
   id: string;
@@ -43,6 +44,8 @@ export default function ProductManager() {
 
   useEffect(() => {
     fetchProducts();
+    const interval = setInterval(fetchProducts, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleEdit = (product: any) => {
@@ -92,7 +95,8 @@ export default function ProductManager() {
           price: parseFloat(editForm.price),
           cost: parseFloat(editForm.cost),
           description: editForm.description,
-          agentInstructions: editForm.agentInstructions
+          agentInstructions: editForm.agentInstructions,
+          stock: 0
         });
 
       if (error) throw error;
@@ -176,6 +180,10 @@ export default function ProductManager() {
         )}
       </div>
 
+      <p style={{ color: 'var(--muted)', marginBottom: '1rem', fontSize: '0.85rem' }}>
+        Stock disponible en packs. Los pedidos descuentan automáticamente; al cancelarlos se devuelve la reserva.
+        {' '}«Sin cargar» mantiene el producto sin control de stock hasta que ingreses una cantidad. Los productos nuevos comienzan en cero.
+      </p>
       {/* Desktop Table View */}
       <div className="table-container desktop-only">
         <table>
@@ -183,6 +191,7 @@ export default function ProductManager() {
             <tr>
               <th>Nombre</th>
               <th>Estado</th>
+              <th>Stock (packs)</th>
               <th>Estructura</th>
               <th>Precio Venta</th>
               <th>Costo Prod.</th>
@@ -283,6 +292,7 @@ export default function ProductManager() {
                   <textarea value={editForm.agentInstructions} onChange={e => setEditForm({...editForm, agentInstructions: e.target.value})} placeholder="Instrucciones ocultas para el Bot (cantidades, reglas)" rows={2} style={{ width: '100%', fontSize: '0.8rem', padding: '0.4rem', borderColor: 'var(--accent)' }} />
                 </td>
                 <td><span style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Activo</span></td>
+                <td>0 packs (ajustar luego)</td>
                 <td><input type="number" value={editForm.unitsPerPackage} onChange={e => { setEditForm({...editForm, unitsPerPackage: e.target.value}); setCalcUnitsPerPack(e.target.value); }} placeholder="Unidades x pack" /></td>
                 <td><input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} placeholder="Precio" /></td>
                 <td>
@@ -330,6 +340,7 @@ export default function ProductManager() {
                     {product.active ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
+                <td><StockEditor productId={product.id} stock={product.stock ?? null} onSaved={fetchProducts} /></td>
                 <td>
                   {editingId === product.id ? 
                     <input type="number" value={editForm.unitsPerPackage} onChange={e => { setEditForm({...editForm, unitsPerPackage: e.target.value}); setCalcUnitsPerPack(e.target.value); }} /> : 
@@ -451,6 +462,9 @@ export default function ProductManager() {
               )}
             </div>
 
+            <div style={{ marginBottom: '1rem' }}>
+              <StockEditor productId={product.id} stock={product.stock ?? null} onSaved={fetchProducts} />
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               <div>
                 <label style={{ fontSize: '0.7rem', color: 'var(--muted)', display: 'block', textTransform: 'uppercase' }}>Precio Venta</label>

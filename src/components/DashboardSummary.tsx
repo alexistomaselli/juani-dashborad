@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useDashboard } from '@/context/DashboardContext';
 import KPIs from './KPIs';
+import { getOrderTotal, formatOrderAmount } from '@/lib/orderPricing';
 import { 
   format, 
   isToday, 
@@ -74,11 +75,13 @@ export default function DashboardSummary() {
   }, [customers, filter]);
 
   const paidOrders = useMemo(() => {
-    return filteredOrders.filter(o => o.isPaid);
+    return filteredOrders.filter(o => o.isPaid && o.status !== 'CANCELLED');
   }, [filteredOrders]);
 
+  const missingPaidAmounts = paidOrders.filter(o => getOrderTotal(o) === null).length;
+
   const totalPaidInPeriod = useMemo(() => {
-    return paidOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    return paidOrders.reduce((sum, o) => sum + (getOrderTotal(o) ?? 0), 0);
   }, [paidOrders]);
 
   if (loading) {
@@ -180,7 +183,7 @@ export default function DashboardSummary() {
                     </td>
                     <td>{order.product}</td>
                     <td>{order.quantity}</td>
-                    <td style={{ fontWeight: '700' }}>${Math.round(order.totalAmount || 0).toLocaleString()}</td>
+                    <td style={{ fontWeight: '700' }}>{formatOrderAmount(getOrderTotal(order))}</td>
                     <td>
                       <span className={`status-badge status-${order.status.toLowerCase()}`}>
                         {order.status === 'PENDING' ? 'Pendiente' : 
@@ -266,7 +269,7 @@ export default function DashboardSummary() {
         {/* Últimos Pagos */}
         <CollapsibleCard 
           title="Pagos Recibidos"
-          subtitle={`Total cobrado: $${Math.round(totalPaidInPeriod).toLocaleString()}`}
+          subtitle={`Total cobrado: ${formatOrderAmount(paidOrders.length > 0 && missingPaidAmounts === paidOrders.length ? null : totalPaidInPeriod)}${missingPaidAmounts > 0 ? ` · Parcial: ${missingPaidAmounts} pedidos sin importe` : ''}`}
           count={paidOrders.length}
           icon={<CreditCard size={20} />}
         >
@@ -286,7 +289,7 @@ export default function DashboardSummary() {
                     <td style={{ fontWeight: '600', color: 'var(--muted)' }}>#{order.orderNumber}</td>
                     <td style={{ fontWeight: '600' }}>{order.customerName}</td>
                     <td style={{ color: 'var(--delivered)', fontWeight: '700' }}>
-                      ${Math.round(order.totalAmount || 0).toLocaleString()}
+                      {formatOrderAmount(getOrderTotal(order))}
                     </td>
                     <td style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
                       {format(parseISO(order.updatedAt), 'dd MMM HH:mm', { locale: es })}
@@ -296,7 +299,7 @@ export default function DashboardSummary() {
                 {paidOrders.length === 0 && (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>
-                      No se registraron cobros en este periodo
+                      No hay pedidos pagados en este periodo
                     </td>
                   </tr>
                 )}

@@ -104,6 +104,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       fetchOrders();
     } catch (error) {
       console.error('Error updating order:', error);
+      alert(error instanceof Object && 'message' in error && error.message === 'JUANI_STOCK_INSUFFICIENT' ? 'Stock insuficiente para modificar el pedido. Revisá la disponibilidad.' : 'No se pudo actualizar el pedido.');
     }
   };
 

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Plus, User, Phone, Package, ShoppingCart, Loader2, Check, MapPin, Search, UserPlus, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useDashboard } from '@/context/DashboardContext';
+import type { OrderWithProduct } from '@/types';
+import { getOrderTotal, getOrderPricingUpdate, formatOrderAmount } from '@/lib/orderPricing';
 
 interface Product {
   id: string;
@@ -11,13 +13,14 @@ interface Product {
   price: number;
   cost: number;
   unitsPerPackage: number;
+  stock: number | null;
 }
 
 interface NewOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  orderToEdit?: any;
+  orderToEdit?: OrderWithProduct | null;
 }
 
 type CustomerMode = 'search' | 'new';
@@ -125,6 +128,8 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
     setSubmitting(true);
     try {
       const selectedProduct = products.find(p => p.id === form.productId);
+      const quantity = Number(form.quantity);
+      const pricingUpdate = getOrderPricingUpdate(orderToEdit, form.productId, quantity, selectedProduct);
       let customerId = selectedCustomerId || orderToEdit?.customerId || null;
 
       if (!customerId) {
@@ -160,19 +165,15 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
         }).eq('id', customerId);
       }
 
-      const quantity = parseInt(form.quantity);
-      const unitPrice = selectedProduct?.price || orderToEdit?.unitPrice || 0;
-      const unitCost = selectedProduct?.cost || orderToEdit?.unitCost || 0;
-
       const orderData = {
         customerName: form.customerName,
         whatsapp: form.whatsapp,
         productId: form.productId,
-        product: selectedProduct?.name || orderToEdit?.product || '',
+        product: orderToEdit && orderToEdit.productId === form.productId
+          ? orderToEdit.product
+          : selectedProduct?.name || '',
         quantity,
-        unitPrice,
-        unitCost,
-        totalAmount: quantity * unitPrice,
+        ...pricingUpdate,
         isPaid: form.isPaid,
         deliveryAddress: form.deliveryAddress,
         customerId,
@@ -203,7 +204,8 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
       onClose();
     } catch (error: any) {
       console.error('Error saving order:', error);
-      alert(`Error al guardar el pedido: ${error?.message || JSON.stringify(error)}`);
+      alert(error?.message === 'JUANI_STOCK_INSUFFICIENT' ? 'El stock cambió y ya no alcanza para este pedido. Revisá la disponibilidad antes de guardar.' : `Error al guardar el pedido: ${error?.message || JSON.stringify(error)}`);
+      fetchProducts();
     } finally {
       setSubmitting(false);
     }
@@ -212,7 +214,24 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
   if (!isOpen) return null;
 
   const selectedProduct = products.find(p => p.id === form.productId);
-  const totalAmount = selectedProduct ? selectedProduct.price * parseInt(form.quantity || '0') : 0;
+  const preservingProduct = !!orderToEdit && form.productId === orderToEdit.productId;
+  let totalAmount: number | null = null;
+  let pricingError: string | null = null;
+  try {
+    const quantity = Number(form.quantity);
+    const update = getOrderPricingUpdate(orderToEdit, form.productId, quantity, selectedProduct);
+    totalAmount = update.totalAmount ?? (orderToEdit ? getOrderTotal(orderToEdit) : null);
+  } catch (error) {
+    pricingError = error instanceof Error ? error.message : 'No se pudo calcular el importe.';
+  }
+  const additionalPacks = orderToEdit?.status === 'CANCELLED' ? 0 : orderToEdit && preservingProduct
+    ? Math.max(0, Number(form.quantity) - orderToEdit.quantity)
+    : Number(form.quantity);
+  if (selectedProduct?.stock != null && additionalPacks > selectedProduct.stock) {
+    pricingError = selectedProduct.stock === 0
+      ? 'Este producto está sin stock. No se puede aumentar ni crear un pedido.'
+      : `Stock insuficiente: quedan ${selectedProduct.stock} packs disponibles.`;
+  }
   const totalUnits = selectedProduct ? selectedProduct.unitsPerPackage * parseInt(form.quantity || '0') : 0;
 
   return (
@@ -425,8 +444,11 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
                 disabled={loading}
               >
                 <option value="">{loading ? 'Cargando...' : 'Seleccionar...'}</option>
+                {preservingProduct && !products.some(p => p.id === form.productId) && (
+                  <option value={form.productId}>{orderToEdit?.product} (pedido original)</option>
+                )}
                 {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} (${p.price})</option>
+                  <option key={p.id} value={p.id}>{p.name} ({orderToEdit?.productId === p.id ? (orderToEdit.unitPrice === null ? 'precio del pedido conservado' : formatOrderAmount(orderToEdit.unitPrice)) : formatOrderAmount(p.price)}) · {p.stock === null ? 'Stock sin cargar' : `${p.stock} packs`}</option>
                 ))}
               </select>
             </div>
@@ -470,7 +492,7 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
           </div>
 
           {/* ── TOTALS ── */}
-          {selectedProduct && (
+          {(selectedProduct || orderToEdit) && (
             <div style={{
               background: 'rgba(139, 92, 246, 0.05)', padding: '1rem',
               borderRadius: '0.75rem', border: '1px dashed var(--accent)',
@@ -482,16 +504,28 @@ export default function NewOrderModal({ isOpen, onClose, onSuccess, orderToEdit 
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Total a Cobrar</div>
-                <div style={{ fontWeight: '800', fontSize: '1.25rem', color: 'var(--delivered)' }}>${totalAmount.toLocaleString()}</div>
+                <div style={{ fontWeight: '800', fontSize: '1.25rem', color: 'var(--delivered)' }}>{formatOrderAmount(totalAmount)}</div>
               </div>
             </div>
           )}
+
+          {preservingProduct && (
+            <p style={{ color: 'var(--muted)', fontSize: '0.8rem', margin: 0 }}>
+              Se conserva el precio del pedido. Cambiar la cantidad recalcula el total con ese precio.
+            </p>
+          )}
+          {orderToEdit && !preservingProduct && selectedProduct && (
+            <p role="status" style={{ color: 'var(--pending)', fontSize: '0.8rem' }}>
+              Al cambiar de producto se aplicará su precio actual al guardar.
+            </p>
+          )}
+          {pricingError && <p role="alert" style={{ color: 'var(--cancelled)' }}>{pricingError}</p>}
 
           {/* ── ACTIONS ── */}
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
             <button
               type="submit"
-              disabled={submitting || !form.customerName || !form.productId}
+              disabled={submitting || !form.customerName || !form.productId || !!pricingError}
               style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
             >
               {submitting ? <Loader2 className="animate-spin" size={18} /> : (orderToEdit ? <Check size={18} /> : <Plus size={18} />)}

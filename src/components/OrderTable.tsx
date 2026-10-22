@@ -8,6 +8,7 @@ import WhatsAppField from './ui/WhatsAppField';
 import type { Order, Product, OrderWithProduct } from '@/types';
 import ConfirmDialog from './ConfirmDialog';
 import { supabase } from '@/lib/supabase';
+import { getOrderTotal, formatOrderAmount } from '@/lib/orderPricing';
 
 import { useDashboard } from '@/context/DashboardContext';
 import { useAuth } from '@/context/AuthContext';
@@ -360,7 +361,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
                       <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)' }}>
-                        ${(order.productRef?.price || order.unitPrice || 0) * order.quantity}
+                        {formatOrderAmount(getOrderTotal(order))}
                       </div>
                       <button
                         onClick={(e) => {
@@ -519,7 +520,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                     : '🤖 Activo'}
                 </span>
                 <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
-                  ${(order.productRef?.price || order.unitPrice || 0) * order.quantity}
+                  {formatOrderAmount(getOrderTotal(order))}
                 </div>
                 <button
                   onClick={() => onUpdate(order.id, { isPaid: !order.isPaid })}

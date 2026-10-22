@@ -198,6 +198,7 @@ export default function DeliveryManager() {
       fetchDeliveries();
     } catch (error) {
       console.error('Error updating order status:', error);
+      alert('No se pudo cambiar el estado del pedido. Verificá el stock si estás reactivando un pedido cancelado.');
     }
   };
 

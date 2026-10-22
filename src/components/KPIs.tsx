@@ -1,6 +1,7 @@
-import { ShoppingBag, Clock, CheckCircle, TrendingUp, Wallet, Users } from 'lucide-react';
+import { Clock, CheckCircle, TrendingUp, Wallet, Users } from 'lucide-react';
 
 import { OrderWithProduct } from '@/types';
+import { formatOrderAmount, summarizeOrderAmounts } from '@/lib/orderPricing';
 
 interface KPIProps {
   orders: OrderWithProduct[];
@@ -12,52 +13,27 @@ export default function KPIs({ orders, totalCustomers }: KPIProps) {
   const deliveredOrders = activeOrders.filter(o => o.status === 'DELIVERED');
   const pendingOrders = orders.filter(o => o.status === 'PENDING');
   
-  const totalOrdersCount = activeOrders.length;
   const deliveredOrdersCount = deliveredOrders.length;
   const pendingOrdersCount = pendingOrders.length;
 
-  // Cantidad de paquetes totales
-  const totalPackages = activeOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
-  
   // Cantidad de paquetes entregados
   const deliveredPackages = deliveredOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
     
-  // Cantidad de unidades individuales (paquetes * unidades por paquete)
-  const totalUnits = activeOrders.reduce((sum, o) => {
-    const unitsPerPack = o.productRef?.unitsPerPackage || 1;
-    return sum + ((o.quantity || 0) * unitsPerPack);
-  }, 0);
-
   const pendingPackages = pendingOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
 
-  // Ventas Totales (Precio * Cantidad)
-  const totalRevenue = activeOrders.reduce((sum, o) => {
-    const price = o.productRef?.price ?? o.unitPrice ?? 0;
-    return sum + (price * (o.quantity || 0));
-  }, 0);
-
-  // Margen de ganancia (Precio - Costo) * Cantidad
-  const totalProfit = activeOrders.reduce((sum, o) => {
-    const price = o.productRef?.price ?? o.unitPrice ?? 0;
-    const cost = o.productRef?.cost ?? o.unitCost ?? 0;
-    return sum + ((price - cost) * (o.quantity || 0));
-  }, 0);
-
-  // Cobranza (Total Pagado vs Total Pendiente)
-  // Usamos totalAmount si existe, sino caemos en el cálculo de revenue
-  const totalPaid = activeOrders.filter(o => o.isPaid).reduce((sum, o) => {
-    const price = o.productRef?.price ?? o.unitPrice ?? 0;
-    return sum + (price * (o.quantity || 0));
-  }, 0);
-
-  // El pendiente es el total de ventas menos lo que ya se cobró
-  const pendingToCollect = totalRevenue - totalPaid;
-
-  // Ticket Promedio
-  const avgTicket = activeOrders.length > 0 ? totalRevenue / activeOrders.length : 0;
+  const amounts = summarizeOrderAmounts(orders);
+  const { revenue: totalRevenue, profit: totalProfit, paid: totalPaid, pending: pendingToCollect, average: avgTicket } = amounts;
+  const noTotals = activeOrders.length > 0 && amounts.missingTotals === activeOrders.length;
+  const noProfits = activeOrders.length > 0 && amounts.missingProfits === activeOrders.length;
 
   return (
     <div className="kpi-grid">
+      {(amounts.missingTotals > 0 || amounts.missingProfits > 0) && (
+        <p role="status" style={{ gridColumn: '1 / -1', color: 'var(--pending)', margin: 0 }}>
+          Totales parciales: {amounts.missingTotals} pedidos sin importe y {amounts.missingProfits} sin datos suficientes para calcular ganancia.
+          {' '}Se incluyen sólo los valores registrados; no se usa el catálogo actual.
+        </p>
+      )}
       <div className="card kpi-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="kpi-label">Pedidos Pendientes</span>
@@ -86,10 +62,10 @@ export default function KPIs({ orders, totalCustomers }: KPIProps) {
           <TrendingUp size={20} color="var(--delivered)" />
         </div>
         <span className="kpi-value">
-          ${Math.round(totalRevenue).toLocaleString()}
+          {formatOrderAmount(noTotals ? null : totalRevenue)}
         </span>
         <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
-          Ganancia est.: <span style={{ color: 'var(--delivered)', fontWeight: '600' }}>${Math.round(totalProfit).toLocaleString()}</span>
+          Ganancia est.: <span style={{ color: 'var(--delivered)', fontWeight: '600' }}>{noProfits ? 'Sin datos de ganancia' : formatOrderAmount(totalProfit)}</span>
         </div>
       </div>
 
@@ -100,12 +76,12 @@ export default function KPIs({ orders, totalCustomers }: KPIProps) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <span className="kpi-value" style={{ color: 'var(--delivered)', fontSize: '1.5rem' }}>
-            ${Math.round(totalPaid).toLocaleString()} <span style={{ fontSize: '0.875rem', fontWeight: 'normal' }}>Pagado</span>
+            {formatOrderAmount(noTotals ? null : totalPaid)} <span style={{ fontSize: '0.875rem', fontWeight: 'normal' }}>Pagado</span>
           </span>
           <div style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', justifyContent: 'space-between' }}>
             <span>Pendiente:</span>
             <span style={{ color: 'var(--cancelled)', fontWeight: '600' }}>
-              ${Math.round(pendingToCollect).toLocaleString()}
+              {formatOrderAmount(noTotals ? null : pendingToCollect)}
             </span>
           </div>
         </div>
@@ -117,10 +93,10 @@ export default function KPIs({ orders, totalCustomers }: KPIProps) {
           <TrendingUp size={20} color="var(--accent)" />
         </div>
         <span className="kpi-value" style={{ fontSize: '2rem' }}>
-          ${Math.round(avgTicket).toLocaleString()}
+          {formatOrderAmount(activeOrders.length === 0 ? 0 : avgTicket)}
         </span>
         <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>
-          Valor medio por pedido
+          Valor medio por pedido con importe registrado
         </div>
       </div>
 

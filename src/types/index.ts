@@ -50,6 +50,7 @@ export interface Product {
   id: string;
   name: string;
   unitsPerPackage: number;
+  stock: number | null;
   price: number;
   cost: number;
   active: boolean;
