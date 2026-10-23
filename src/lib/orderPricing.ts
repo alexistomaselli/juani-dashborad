@@ -1,6 +1,6 @@
 import type { Order, Product } from '../types';
 
-type StoredPricing = Pick<Order, 'quantity' | 'unitPrice' | 'unitCost' | 'totalAmount'>;
+type StoredPricing = Pick<Order, 'quantity' | 'unitPrice' | 'unitCost' | 'totalAmount'> & Pick<Order, 'promoDiscountPercent'>;
 type PricingOrder = StoredPricing & Pick<Order, 'productId'>;
 type PricingUpdate = Partial<Pick<Order, 'unitPrice' | 'unitCost' | 'totalAmount'>>;
 
@@ -8,11 +8,15 @@ function isAmount(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
+export function discountedTotal(base: number, percent = 0): number {
+  return Math.round(base * (1 - percent / 100) * 100) / 100;
+}
+
 // Never substitute today's catalog for the amount agreed on a previous order.
 export function getOrderTotal(order: StoredPricing): number | null {
   if (isAmount(order.totalAmount)) return order.totalAmount;
   if (isAmount(order.unitPrice) && Number.isInteger(order.quantity) && order.quantity > 0) {
-    return order.unitPrice * order.quantity;
+    return discountedTotal(order.unitPrice * order.quantity, order.promoDiscountPercent);
   }
   return null;
 }
@@ -44,13 +48,13 @@ export function getOrderPricingUpdate(
     if (!isAmount(existing.unitPrice)) {
       throw new Error('Este pedido no tiene precio por pack registrado. Conservá la cantidad para editar otros datos; no se usará el precio actual del catálogo.');
     }
-    return { totalAmount: quantity * existing.unitPrice };
+    return { totalAmount: discountedTotal(quantity * existing.unitPrice, existing.promoDiscountPercent) };
   }
 
   if (!product || !isAmount(product.price) || !isAmount(product.cost)) {
     throw new Error('No se pudo obtener el precio y costo del producto seleccionado.');
   }
-  return { unitPrice: product.price, unitCost: product.cost, totalAmount: quantity * product.price };
+  return { unitPrice: product.price, unitCost: product.cost, totalAmount: discountedTotal(quantity * product.price, existing?.promoDiscountPercent) };
 }
 
 export function summarizeOrderAmounts(orders: (StoredPricing & Pick<Order, 'status' | 'isPaid'>)[]) {

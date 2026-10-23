@@ -362,6 +362,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
                       <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)' }}>
                         {formatOrderAmount(getOrderTotal(order))}
+                        {!!order.promoDiscountPercent && <small style={{ display: 'block', color: 'var(--accent)' }}>{order.promoDiscountPercent}% de promoción aplicado</small>}
                       </div>
                       <button
                         onClick={(e) => {
@@ -521,6 +522,7 @@ export default function OrderTable({ orders, onUpdate, onDelete, onRefresh }: Or
                 </span>
                 <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--foreground)', marginTop: '0.25rem' }}>
                   {formatOrderAmount(getOrderTotal(order))}
+                        {!!order.promoDiscountPercent && <small style={{ display: 'block', color: 'var(--accent)' }}>{order.promoDiscountPercent}% de promoción aplicado</small>}
                 </div>
                 <button
                   onClick={() => onUpdate(order.id, { isPaid: !order.isPaid })}

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import KPIs from '@/components/KPIs';
-import { ChefHat, RefreshCcw, Menu, X, Package, Users, LayoutDashboard, ChevronDown, Plus, Truck, ShoppingBag, LogOut, MessageSquare, Settings } from 'lucide-react';
+import { ChefHat, RefreshCcw, Menu, X, Package, Users, LayoutDashboard, ChevronDown, Plus, Truck, ShoppingBag, LogOut, MessageSquare, Settings, Gift } from 'lucide-react';
 import NewOrderModal from '@/components/NewOrderModal';
 import { useDashboard } from '@/context/DashboardContext';
 import { useAuth } from '@/context/AuthContext';
@@ -26,6 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (pathname.includes('/repartos')) return 'deliveries';
     if (pathname.includes('/conversaciones')) return 'conversations';
     if (pathname.includes('/configuracion')) return 'settings';
+    if (pathname.includes('/promociones')) return 'promotions';
     return 'orders';
   };
 
@@ -88,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
 
         {/* Desktop Navigation */}
-        <div className="desktop-only" style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="desktop-only" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <Link href="/">
             <button className={activeTab === 'dashboard' ? 'primary' : 'secondary'} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <LayoutDashboard size={16} /> Resumen
@@ -119,6 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Truck size={16} /> Repartos
             </button>
           </Link>
+          <Link href="/promociones"><button className={activeTab === 'promotions' ? 'primary' : 'secondary'} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Gift size={16} /> Promos</button></Link>
           <Link href="/configuracion">
             <button className={activeTab === 'settings' ? 'primary' : 'secondary'} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Settings size={16} /> Configuración
@@ -188,6 +190,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 { id: 'products', label: 'Productos', icon: Package, path: '/productos' },
                 { id: 'deliveries', label: 'Repartos', icon: Truck, path: '/repartos' },
                 { id: 'customers', label: 'Clientes', icon: Users, path: '/clientes' },
+                { id: 'promotions', label: 'Promociones', icon: Gift, path: '/promociones' },
                 { id: 'conversations', label: 'Conversaciones', icon: MessageSquare, path: '/conversaciones' }
               ].map((item, index) => (
                 <motion.div

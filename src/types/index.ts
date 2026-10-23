@@ -28,6 +28,9 @@ export interface Order {
   unitCost: number | null;
   status: string;
   isPaid: boolean;
+  promoParticipantId?: string | null;
+  promoDiscountPercent?: number;
+  promoDiscountBase?: number | null;
   totalAmount: number | null;
   createdAt: string;
   updatedAt: string;

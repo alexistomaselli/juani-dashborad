@@ -75,3 +75,13 @@ test('missing cost does not fabricate profit, while a loss remains a valid margi
   const unknown = { ...original, totalAmount: null, unitPrice: null, unitCost: null, status: 'PENDING', isPaid: false };
   assert.equal(summarizeOrderAmounts([unknown]).average, null);
 });
+
+test('promo discounts survive quantity and product edits and keep historical margin', () => {
+  const order = { ...original, promoDiscountPercent: 10, totalAmount: 9000 };
+  assert.equal(getOrderTotal(order), 9000);
+  assert.equal(getOrderProfit(order), 5000);
+  assert.deepEqual(getOrderPricingUpdate(order, 'original', 3, catalog), { totalAmount: 13500 });
+  assert.deepEqual(getOrderPricingUpdate(order, 'new', 2, catalog), { unitPrice: 6000, unitCost: 3000, totalAmount: 10800 });
+  assert.equal(getOrderTotal({ ...order, totalAmount: null }), 9000);
+  assert.deepEqual(getOrderPricingUpdate(order, 'original', 2, catalog), {});
+});
