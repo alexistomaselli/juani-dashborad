@@ -7,5 +7,5 @@ CREATE TABLE "UserRole"(email text,role text);
 INSERT INTO "UserRole" VALUES('test@example.invalid','ADMIN');
 CREATE TABLE "Customer"(id text PRIMARY KEY,name text);
 CREATE TABLE "Product"(id text PRIMARY KEY,name text,active boolean DEFAULT true,"updatedAt" timestamptz DEFAULT now());
-CREATE TABLE "Order"(id text PRIMARY KEY DEFAULT gen_random_uuid(),"customerId" text REFERENCES "Customer"(id),"customerName" text,product text NOT NULL,"productId" text REFERENCES "Product"(id),quantity integer NOT NULL,
+CREATE TABLE "Order"(id text PRIMARY KEY DEFAULT gen_random_uuid(),"customerId" text REFERENCES "Customer"(id),"customerName" text,whatsapp text,product text NOT NULL,"productId" text REFERENCES "Product"(id),quantity integer NOT NULL,
 status text DEFAULT 'PENDING',"orderNumber" integer,"createdAt" timestamptz DEFAULT now(),"updatedAt" timestamptz DEFAULT now(),"unitPrice" double precision DEFAULT 100,"unitCost" double precision DEFAULT 20,"totalAmount" double precision DEFAULT 100,"isPaid" boolean DEFAULT false);

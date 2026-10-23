@@ -15,11 +15,13 @@ const date = (value: string | null) => value ? value.split('-').reverse().join('
 const time = (value: string | null) => value ? new Date(value).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }) : '—';
 const finished = (p: Promotion) => p.status === 'ENDED' || (p.status === 'ACTIVE' && !!p.ends_on && p.ends_on < today());
 const stateLabel = (p: Promotion) => p.status === 'DRAFT' ? 'Borrador' : finished(p) ? 'Finalizada' : p.starts_on > today() ? 'Programada' : 'Activa';
-const benefitLabel = (p: Participant, promo: Promotion) => p.benefit_status === 'REVIEW' ? 'Requiere revisión' : p.benefit === 'PRIZE' ? p.benefit_status === 'USED' ? 'Premio entregado' : 'Premio pendiente de elegir' : p.benefit === 'DISCOUNT' ? `${promo.discount_percent}% ${p.benefit_status === 'USED' ? 'utilizado' : 'pendiente'}` : 'En progreso';
+const accumulated = (p: Participant) => p.confirmed + p.pending;
+const waiting = (p: Participant, data: PromotionDashboard) => p.benefit === 'DISCOUNT' && p.benefit_status === 'PENDING' && data.participants.some(other => other.benefit === 'PRIZE' && other.benefit_status === 'PENDING' && other.confirmed < data.campaign.target);
+const benefitLabel = (p: Participant, promo: Promotion) => p.benefit_status === 'REVIEW' ? 'Requiere revisión' : p.benefit === 'PRIZE' ? p.benefit_status === 'USED' ? 'Premio entregado' : p.confirmed >= promo.target ? 'Premio asegurado · pendiente de retirar' : 'Premio reservado · pedidos pendientes' : p.benefit === 'DISCOUNT' ? `${promo.discount_percent}% ${p.benefit_status === 'USED' ? 'utilizado' : 'disponible'}` : 'En progreso';
 
 export function PizzaProgress({ confirmed, pending, target }: { confirmed: number; pending: number; target: number }) {
   const point = (angle: number) => `${40 + 34 * Math.cos(angle)},${40 + 34 * Math.sin(angle)}`;
-  return <svg viewBox="0 0 80 80" width="68" height="68" role="img" aria-label={`${confirmed} porciones confirmadas de ${target}; ${pending} pendientes`}>
+  return <svg viewBox="0 0 80 80" width="68" height="68" role="img" aria-label={`${confirmed} porciones entregadas de ${target}; ${pending} pendientes de entrega`}>
     <circle cx="40" cy="40" r="38" fill="#30231b" stroke="#c49b6b" strokeWidth="2" />
     {Array.from({ length: target }, (_, i) => {
       const a = -Math.PI / 2 + i * 2 * Math.PI / target + 0.035;
@@ -45,17 +47,23 @@ export default function PromotionsManager() {
 
   const refresh = useCallback(async () => {
     const seq = ++sequence.current;
-    const list = await supabase.from('PromoCampaign').select('*').order('created_at', { ascending: false });
-    if (seq !== sequence.current) return;
-    if (list.error) { setError(list.error.message); setLoading(false); return; }
-    setPromotions(list.data as Promotion[]);
-    if (selected) {
-      const response = await supabase.rpc('promo_dashboard', { p_campaign: selected });
+    try {
+      const list = await supabase.from('PromoCampaign').select('*').order('created_at', { ascending: false });
       if (seq !== sequence.current) return;
-      if (response.error) setError(response.error.message);
-      else setData(response.data as PromotionDashboard);
-    } else setData(null);
-    setLoading(false);
+      if (list.error) throw list.error;
+      setPromotions(list.data as Promotion[]);
+      if (selected) {
+        const response = await supabase.rpc('promo_dashboard', { p_campaign: selected });
+        if (seq !== sequence.current) return;
+        if (response.error) throw response.error;
+        setData(response.data as PromotionDashboard);
+      } else setData(null);
+      setError('');
+    } catch (e) {
+      if (seq === sequence.current) setError(e instanceof Error ? e.message : 'No se pudieron cargar las promociones. Intentá actualizar.');
+    } finally {
+      if (seq === sequence.current) setLoading(false);
+    }
   }, [selected]);
   const invalidate = useCallback(() => { sequence.current++; }, []);
   useEffect(() => {
@@ -108,8 +116,12 @@ export default function PromotionsManager() {
         <span className={styles.rule}>1 pack = 1 porción</span>
       </div>
       <div className={styles.stats}>
-        <Stat value={data.participants.length} label="Participantes" />
-        <Stat value={data.participants.filter(p => p.confirmed >= promo.target).length} label="Llavero completo" />
+        <Stat value={data.participants.filter(p => accumulated(p) > 0).length} label="Participantes" />
+        <Stat value={data.participants.filter(p => accumulated(p) >= promo.target).length} label="Llavero completo" />
+        <Stat value={data.participants.filter(p => accumulated(p) > 0 && accumulated(p) < promo.target).length} label="En progreso" />
+        <Stat value={data.participants.filter(p => p.benefit === 'PRIZE' && p.benefit_status === 'PENDING' && p.confirmed < promo.target).length} label="Premio reservado" />
+        <Stat value={data.participants.filter(p => p.benefit === 'PRIZE' && p.benefit_status === 'PENDING' && p.confirmed >= promo.target).length} label="Premio asegurado" />
+        <Stat value={data.participants.filter(p => p.benefit === 'DISCOUNT' && p.benefit_status === 'USED').length} label="Descuentos utilizados" />
         <Stat value={`${data.prizes.filter(p => p.delivered_at).length}/${promo.prize_limit}`} label="Premios entregados" />
         <Stat value={data.participants.filter(p => p.benefit === 'DISCOUNT' && p.benefit_status === 'PENDING').length} label="Descuentos pendientes" />
       </div>
@@ -118,8 +130,8 @@ export default function PromotionsManager() {
       {tab === 'participants' && <Participants data={data} busy={busy} run={run} />}
       {tab === 'prizes' && <>
         <p className={styles.explanation}>{promo.prize_limit - data.participants.filter(p => p.prize_slot !== null).length} lugares para premio sin asignar · {data.participants.filter(p => p.benefit === 'PRIZE' && p.benefit_status === 'PENDING').length} clientes con derecho a premio pendiente de elegir. Eligen cuando vienen a buscarlo.</p>
-        <div className={styles.grid}>{data.prizes.map(prize => <PrizeCard key={`${prize.id}:${prize.name}:${prize.image_url}:${prize.delivered_at}`} prize={prize} participants={data.participants} run={run} busy={busy} />)}</div>
-        <h3>Descuentos de próxima compra</h3><p className={styles.explanation}>Se aplican desde este panel a la siguiente compra posterior a completar el llavero, antes de cobrarla o entregarla. No se aplican al pedido que completó las porciones.</p>
+        <div className={styles.grid}>{data.prizes.map(prize => <PrizeCard key={`${prize.id}:${prize.name}:${prize.image_url}:${prize.delivered_at}`} prize={prize} participants={data.participants} target={promo.target} run={run} busy={busy} />)}</div>
+        <h3>Descuentos de próxima compra</h3><p className={styles.explanation}>Se aplican automáticamente al registrar la próxima compra pendiente de pago. Para compras ya registradas, podés aplicarlos desde aquí antes de cobrarlas o entregarlas. No se aplican al pedido que completó las porciones.</p>
         {data.participants.filter(p => p.benefit === 'DISCOUNT').map(p => <DiscountCard key={`${p.id}:${p.benefit_status}`} participant={p} promo={promo} run={run} busy={busy} />)}
         {!data.participants.some(p => p.benefit === 'DISCOUNT') && <p>Todavía no hay descuentos asignados.</p>}
       </>}
@@ -138,7 +150,7 @@ function NewPromotion({ busy, onCreate, onCancel }: { busy: boolean; onCreate: (
     <h2>Nueva promoción por packs</h2><label>Nombre<input name="name" required maxLength={120} /></label>
     <div className={styles.formGrid}><label>Inicio<input name="start" type="date" required defaultValue={today()} /></label><label>Fin opcional<input name="end" type="date" /></label></div>
     <div className={styles.formGrid}><label>Packs para completar<input name="target" type="number" min="1" max="100" defaultValue="6" required /></label><label>Cantidad de premios distintos<input name="prizes" type="number" min="0" max="100" defaultValue="5" required /></label><label>Descuento posterior (%)<input name="discount" type="number" min="1" max="100" defaultValue="10" required /></label></div>
-    <p>Se crea en borrador. Todos los packs de productos activos participan; las porciones se confirman al entregar el pedido.</p>
+    <p>Se crea en borrador. Todos los packs de productos activos participan; las porciones suman al registrar el pedido y la entrega asegura el lugar para premio.</p>
     <div className={styles.actions}><button disabled={busy}>Crear borrador</button><button type="button" className="secondary" onClick={onCancel}>Cancelar</button></div>
   </form>;
 }
@@ -147,18 +159,28 @@ export function Participants({ data, busy, run }: { data: PromotionDashboard; bu
   const [search, setSearch] = useState(''); const [filter, setFilter] = useState('all'); const [expanded, setExpanded] = useState<string | null>(null);
   const promo = data.campaign;
   const people = data.participants.filter(p => p.customer_name.toLowerCase().includes(search.toLowerCase()) && (
-    filter === 'all' || (filter === 'progress' && p.confirmed < promo.target) || (filter === 'completed' && p.confirmed >= promo.target) || (filter === 'prize' && p.benefit === 'PRIZE' && p.benefit_status === 'PENDING') || (filter === 'discount' && p.benefit === 'DISCOUNT' && p.benefit_status === 'PENDING') || (filter === 'review' && (p.benefit_status === 'REVIEW' || p.pieces_delivered > p.confirmed))));
+    filter === 'all' || (filter === 'progress' && accumulated(p) > 0 && accumulated(p) < promo.target) ||
+    (filter === 'completed' && accumulated(p) >= promo.target) ||
+    (filter === 'reserved' && p.benefit === 'PRIZE' && p.benefit_status === 'PENDING' && p.confirmed < promo.target) ||
+    (filter === 'secured' && p.benefit === 'PRIZE' && p.benefit_status === 'PENDING' && p.confirmed >= promo.target) ||
+    (filter === 'prizeUsed' && p.benefit === 'PRIZE' && p.benefit_status === 'USED') ||
+    (filter === 'discount' && p.benefit === 'DISCOUNT' && p.benefit_status === 'PENDING') ||
+    (filter === 'discountUsed' && p.benefit === 'DISCOUNT' && p.benefit_status === 'USED') ||
+    (filter === 'waiting' && waiting(p, data)) ||
+    (filter === 'notify' && p.benefit === 'PRIZE' && !!p.promotion_notice_at && !p.promotion_notified_at) ||
+    (filter === 'review' && (p.benefit_status === 'REVIEW' || p.pieces_delivered > accumulated(p)))));
   return <>
-    <div className={styles.filters}><label className={styles.search}><Search size={16} /><input placeholder="Buscar cliente" aria-label="Buscar participante" value={search} onChange={e => setSearch(e.target.value)} /></label><select aria-label="Filtrar participantes" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todos</option><option value="progress">En progreso</option><option value="completed">Completaron</option><option value="prize">Premio pendiente</option><option value="discount">Descuento pendiente</option><option value="review">Revisar</option></select></div>
-    <p className={styles.explanation}>Naranja: porciones confirmadas al entregar. Ámbar: packs pendientes de entrega. Las porciones físicas se registran por separado.</p>
+    <div className={styles.filters}><label className={styles.search}><Search size={16} /><input placeholder="Buscar cliente" aria-label="Buscar participante" value={search} onChange={e => setSearch(e.target.value)} /></label><select aria-label="Filtrar participantes" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todos</option><option value="progress">En progreso</option><option value="completed">Completaron</option><option value="reserved">Premio reservado</option><option value="secured">Premio asegurado</option><option value="prizeUsed">Premio entregado</option><option value="discount">Descuento disponible</option><option value="discountUsed">Descuento utilizado</option><option value="waiting">En espera de premio</option><option value="notify">Avisar pase a premio</option><option value="review">Revisar</option></select></div>
+    <p className={styles.explanation}>Todas las porciones suman desde el registro. Naranja: pedidos entregados; ámbar: pendientes de entrega. Las porciones físicas se registran por separado.</p>
     {people.length === 0 && <div className="card">Todavía no hay participantes para este filtro.</div>}
     {people.map(p => <article key={p.id} className={`card ${styles.participant}`}>
-      <div className={styles.personRow}><PizzaProgress confirmed={Math.min(p.confirmed, promo.target)} pending={p.pending} target={promo.target} /><div className={styles.personName}><h3>{p.customer_name}</h3><span>{p.confirmed}/{promo.target} confirmadas · {p.pending} pendientes</span><p>{p.confirmed >= promo.target ? `Completó · posición ${p.completion_rank ?? '—'}` : `Faltan ${promo.target - p.confirmed} porciones confirmadas`}</p></div><span className={`${styles.badge} ${p.benefit_status === 'REVIEW' ? styles.error : ''}`}>{benefitLabel(p, promo)}</span><button className="secondary" onClick={() => setExpanded(expanded === p.id ? null : p.id)}>{expanded === p.id ? 'Cerrar' : 'Ver detalle'}</button></div>
+      <div className={styles.personRow}><PizzaProgress confirmed={Math.min(p.confirmed, promo.target)} pending={p.pending} target={promo.target} /><div className={styles.personName}><h3>{p.customer_name}</h3><span>{accumulated(p)}/{promo.target} acumuladas · {p.confirmed} entregadas · {p.pending} pendientes</span><p>{accumulated(p) >= promo.target ? `Completó · posición ${p.completion_rank ?? '—'}` : `Faltan ${promo.target - accumulated(p)} porciones`}</p></div><span className={`${styles.badge} ${p.benefit_status === 'REVIEW' ? styles.error : ''}`}>{benefitLabel(p, promo)}{waiting(p, data) && ' · En espera de premio'}</span><button className="secondary" onClick={() => setExpanded(expanded === p.id ? null : p.id)}>{expanded === p.id ? 'Cerrar' : 'Ver detalle'}</button></div>
+      {p.benefit === 'PRIZE' && p.promotion_notice_at && !p.promotion_notified_at && <p className={styles.notice}>Pasó de descuento a premio: contactá al cliente para avisarle. <button className="secondary" disabled={busy} onClick={() => void run('promo_acknowledge_promotion', { p_participant: p.id })}>Ya le avisé</button></p>}
       {expanded === p.id && <div className={styles.personDetail}>
         <p>Llavero {p.keychain_delivered_at ? `entregado ${time(p.keychain_delivered_at)}` : 'pendiente de entregar'} · {p.pieces_delivered} porciones físicas entregadas</p>
-        {p.pieces_delivered > p.confirmed && <p className={styles.error}>Revisar: hay más porciones físicas entregadas que compras confirmadas después de un ajuste.</p>}
+        {p.pieces_delivered > accumulated(p) && <p className={styles.error}>Revisar: hay más porciones físicas entregadas que compras vigentes después de un ajuste.</p>}
         <PhysicalDelivery key={`${p.id}:${p.pieces_delivered}:${p.keychain_delivered_at}`} participant={p} target={promo.target} run={run} busy={busy} />
-        <div className={styles.orderList}><h4>Compras que explican el avance</h4>{p.orders.map(o => <div key={o.order_id}><strong>#{o.order_number ?? '—'}</strong><span>{o.quantity} packs · {o.product_name}</span><span>{o.order_status === 'DELIVERED' ? `${o.confirmed} confirmadas` : o.order_status === 'PENDING' ? `${o.pending} pendientes` : o.order_status === 'CANCELLED' ? 'Cancelado · no suma' : o.order_status === 'DELETED' ? 'Eliminado · no suma' : 'Fuera de la promo'}</span></div>)}</div>
+        <div className={styles.orderList}><h4>Compras que explican el avance</h4>{p.orders.map(o => <div key={o.order_id}><strong>#{o.order_number ?? '—'}</strong><span>{o.quantity} packs · {o.product_name}</span><span>{o.order_status === 'DELIVERED' ? `${o.confirmed} porciones · entregado` : o.order_status === 'PENDING' ? `${o.pending} porciones · pendiente de entrega` : o.order_status === 'CANCELLED' ? 'Cancelado · no suma' : o.order_status === 'DELETED' ? 'Eliminado · no suma' : 'Fuera de la promo'}</span></div>)}</div>
         {p.benefit_status === 'REVIEW' && <p className={styles.error}>Se modificó una compra después de utilizar el beneficio. Revisá el caso antes de entregar otro premio o aplicar otro descuento.</p>}
       </div>}
     </article>)}
@@ -169,14 +191,14 @@ function PhysicalDelivery({ participant: p, target, run, busy }: { participant: 
   const [pieces, setPieces] = useState(p.pieces_delivered); const [keychain, setKeychain] = useState(!!p.keychain_delivered_at);
   return <form className={styles.deliveryForm} onSubmit={e => { e.preventDefault(); void run('promo_physical_delivery', { p_participant: p.id, p_keychain: keychain, p_pieces: pieces }); }}>
     <label><input type="checkbox" checked={keychain} onChange={e => setKeychain(e.target.checked)} /> Llavero entregado</label>
-    <label>Porciones físicas<input type="number" min="0" max={Math.min(target, p.confirmed)} value={pieces} onChange={e => setPieces(Number(e.target.value))} required /></label>
+    <label>Porciones físicas<input type="number" min="0" max={Math.min(target, accumulated(p))} value={pieces} onChange={e => setPieces(Number(e.target.value))} required /></label>
     <button className="secondary" disabled={busy}>Guardar entrega</button>
   </form>;
 }
 
-export function PrizeCard({ prize, participants, run, busy }: { prize: Prize; participants: Participant[]; run: Run; busy: boolean }) {
+export function PrizeCard({ prize, participants, target, run, busy }: { prize: Prize; participants: Participant[]; target: number; run: Run; busy: boolean }) {
   const [editing, setEditing] = useState(false); const [chosen, setChosen] = useState('');
-  const eligible = participants.filter(p => p.benefit === 'PRIZE' && p.benefit_status === 'PENDING');
+  const eligible = participants.filter(p => p.benefit === 'PRIZE' && p.benefit_status === 'PENDING' && p.confirmed >= target);
   return <article className={`card ${styles.prize}`}>
     {prize.image_url ? <Image src={prize.image_url} alt={prize.name} width={480} height={240} unoptimized /> : <div className={styles.prizePlaceholder}><Gift size={42} /><span>Foto pendiente</span></div>}
     <span className={styles.badge}>{prize.delivered_at ? 'Entregado' : 'Disponible'}</span><h3>{prize.name}</h3>
@@ -214,16 +236,16 @@ export function Settings({ promo, run, busy, onActivated }: { promo: Promotion; 
       <h3>Fechas y reglas</h3><label>Nombre<input name="name" defaultValue={promo.name} required maxLength={120} disabled={promo.status === 'ENDED'} /></label>
       <div className={styles.formGrid}><label>Inicio<input name="start" type="date" defaultValue={promo.starts_on} readOnly={promo.status !== 'DRAFT'} required /></label><label>Fin opcional (incluye ese día)<input name="end" type="date" min={promo.starts_on} defaultValue={promo.ends_on ?? ''} disabled={promo.status === 'ENDED'} /></label></div>
       <p>Meta: {promo.target} packs · {promo.prize_limit} premios distintos · {promo.discount_percent}% para quienes completen después.</p>
-      <p>Los pedidos suman porciones pendientes al cargarse y se confirman al entregarlos. Cancelar o ajustar una compra actualiza el avance. Cada cliente participa una vez; no se reinicia automáticamente al completar.</p>
+      <p>Los pedidos pendientes y entregados suman porciones al registrarse. Al llegar a la meta se reserva premio por orden; se asegura con {promo.target} porciones entregadas. Si no hay lugar, corresponde el descuento y, mientras haya reservas pendientes, lista de espera. Cada cliente utiliza un solo beneficio. Cancelar o ajustar una compra actualiza el avance. Cada cliente participa una vez; no se reinicia automáticamente al completar.</p>
       {promo.status !== 'ENDED' && <button disabled={busy}>Guardar configuración</button>}
     </form>
     {promo.status === 'DRAFT' && <div className={`card ${styles.form}`}>
       <h3>Revisar compras antes de activar</h3><p>La vista previa no cambia pedidos, stock ni precios. Se incorporan una sola vez las compras desde {date(promo.starts_on)}.</p>
       <button className="secondary" disabled={busy} onClick={async () => { setPreviewError(''); setReviewed(false); const r = await supabase.rpc('promo_preview', { p_campaign: promo.id }); if (r.error) setPreviewError(r.error.message); else setPreview(r.data as PromotionPreview); }}>Ver vista previa</button>
       {previewError && <p role="alert" className={styles.error}>{previewError}</p>}
-      {preview && <><p><strong>{preview.orders} pedidos</strong> · {preview.confirmed} porciones confirmadas · {preview.pending} pendientes · {preview.unlinked} pedidos sin cliente</p>
-        <p className={styles.notice}>En compras anteriores, la fecha de entrega no estaba registrada por separado. Para ordenar completados históricos se usa la última actualización del pedido como referencia aproximada. Revisá si alguien ya había completado.</p>
-        {preview.participants.map((p, i) => <details key={p.customer_id ?? i} className={styles.previewPerson}><summary>{p.customer_name ?? 'Sin cliente vinculado'} · {p.confirmed} confirmadas · {p.pending} pendientes</summary>{p.orders.map((o, j) => <p key={j}>#{o.order_number} · {o.quantity} packs de {o.product_name} · {o.order_status === 'DELIVERED' ? 'Entregado' : 'Pendiente'}</p>)}</details>)}
+      {preview && <><p><strong>{preview.orders} pedidos</strong> · {preview.confirmed + preview.pending} porciones acumuladas · {preview.confirmed} entregadas · {preview.pending} pendientes de entrega · {preview.unlinked} pedidos sin cliente</p>
+        <p className={styles.notice}>El orden histórico se calcula con las fechas de registro y las cantidades actuales de los pedidos. Revisá posibles ajustes anteriores: no se conoce cuándo cambió históricamente cada cantidad.</p>
+        {preview.participants.map((p, i) => <details key={p.customer_id ?? i} className={styles.previewPerson}><summary>{p.customer_name ?? 'Sin cliente vinculado'} · {p.confirmed + p.pending} acumuladas · {p.confirmed} entregadas · {p.pending} pendientes de entrega</summary>{p.orders.map((o, j) => <p key={j}>#{o.order_number} · {o.quantity} packs de {o.product_name} · {o.order_status === 'DELIVERED' ? 'Entregado' : 'Pendiente'}</p>)}</details>)}
         {preview.unlinked > 0 && <p className={styles.error}>Vinculá los pedidos sin cliente desde Pedidos antes de activar.</p>}
         <label className={styles.checkbox}><input type="checkbox" checked={reviewed} onChange={e => setReviewed(e.target.checked)} /> Revisé las compras y confirmo que corresponden a esta promoción.</label>
         <button disabled={busy || !reviewed || preview.unlinked > 0} onClick={async () => { if (await run('promo_activate', { p_campaign: promo.id, p_snapshot: preview.snapshot })) onActivated(); }}>Activar e incorporar compras</button>

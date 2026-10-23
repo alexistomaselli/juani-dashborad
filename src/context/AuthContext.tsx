@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { User } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -23,12 +23,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Cargar sesión inicial y escuchar cambios de estado de forma unificada y robusta
   useEffect(() => {
     let mounted = true;
+    let sessionSequence = 0;
+    const pendingSessions = new Set<ReturnType<typeof setTimeout>>();
 
-    async function handleSession(session: any) {
+    async function handleSession(session: Session | null, seq = ++sessionSequence) {
+      if (!mounted || seq !== sessionSequence) return;
       const currentUser = session?.user ?? null;
       
       if (!currentUser) {
-        if (mounted) {
+        if (mounted && seq === sessionSequence) {
           setUser(null);
           setRole(null);
           setLoading(false);
@@ -37,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        if (mounted) {
+        if (mounted && seq === sessionSequence) {
           setUser(currentUser);
         }
         
@@ -48,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('email', currentUser.email?.trim().toLowerCase())
           .maybeSingle();
 
-        if (mounted) {
+        if (mounted && seq === sessionSequence) {
           if (data && !error) {
             setRole(data.role as 'SUPERADMIN' | 'ADMIN');
           } else {
@@ -60,18 +63,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error('Error al obtener rol del usuario:', err);
-        if (mounted) {
+        if (mounted && seq === sessionSequence) {
           setUser(null);
           setRole(null);
         }
       } finally {
-        if (mounted) {
+        if (mounted && seq === sessionSequence) {
           setLoading(false);
         }
       }
     }
 
-    let subscription: any = null;
+    let subscription: { unsubscribe: () => void } | null = null;
 
     async function initializeAuth() {
       try {
@@ -88,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         await handleSession(data?.session);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('Error al inicializar sesión:', err);
         await supabase.auth.signOut().catch(() => {});
         if (mounted) {
@@ -99,15 +102,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 2. Escuchar futuros cambios
-      const { data } = supabase.auth.onAuthStateChange(async (event, sessionEvent) => {
+      if (!mounted) return;
+      const { data } = supabase.auth.onAuthStateChange((event, sessionEvent) => {
         if (!mounted) return;
+        const seq = ++sessionSequence;
         console.log('Evento de autenticación de Supabase recibido:', event);
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setRole(null);
           setLoading(false);
         } else if (event !== 'INITIAL_SESSION') {
-          await handleSession(sessionEvent);
+          // Supabase waits for auth callbacks while holding its session lock.
+          // Starting another Supabase request inside it can deadlock all queries.
+          const timer = setTimeout(() => {
+            pendingSessions.delete(timer);
+            if (mounted) void handleSession(sessionEvent, seq);
+          }, 0);
+          pendingSessions.add(timer);
         }
       });
       subscription = data.subscription;
@@ -117,6 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
+      pendingSessions.forEach(clearTimeout);
       if (subscription) {
         subscription.unsubscribe();
       }
@@ -154,8 +166,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(data.user);
       setRole(roleCheck.role as 'SUPERADMIN' | 'ADMIN');
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Ocurrió un error inesperado al iniciar sesión.' };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Ocurrió un error inesperado al iniciar sesión.' };
     }
   };
 
@@ -178,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 2. Registrar en Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: cleanEmail,
         password,
       });
@@ -188,8 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Error al intentar registrarse.' };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Error al intentar registrarse.' };
     }
   };
 

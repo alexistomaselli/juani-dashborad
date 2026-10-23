@@ -11,6 +11,7 @@ export interface Participant {
   completed_at: string | null; completion_rank: number | null; benefit: 'PRIZE' | 'DISCOUNT' | null;
   benefit_status: 'PENDING' | 'USED' | 'REVIEW' | null; prize_slot: number | null;
   used_order_id: string | null; used_at: string | null; keychain_delivered_at: string | null;
+  promotion_notice_at: string | null; promotion_notified_at: string | null;
   pieces_delivered: number; orders: PromotionOrder[];
 }
 export interface Prize {
