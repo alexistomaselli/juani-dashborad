@@ -4,6 +4,7 @@ DO $$ BEGIN
  IF current_database() NOT LIKE 'juani_promos_%' THEN RAISE EXCEPTION 'Use a disposable juani_promos_* database'; END IF;
 END $$;
 DELETE FROM "Order";
+UPDATE "PromoCampaign" SET status='ENDED',closed_at=clock_timestamp()-interval '1 day' WHERE status<>'DRAFT';
 ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS whatsapp text;
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000001","email":"test@example.invalid"}',true);
 DO $$
@@ -70,6 +71,10 @@ BEGIN
  UPDATE "Order" SET "updatedAt"=clock_timestamp() WHERE id='v2-order-4';
  IF (SELECT pending FROM "PromoParticipant" WHERE campaign_id=cid AND customer_id='v2-4')<>6 THEN RAISE EXCEPTION 'Inactive erased progress'; END IF;
  UPDATE "Product" SET active=true WHERE id='v2-product';
+ -- A secured but uncollected prize also stays reserved for review after correction.
+ UPDATE "Order" SET status='DELIVERED' WHERE id='v2-order-5';
+ UPDATE "Order" SET status='CANCELLED' WHERE id='v2-order-5';
+ IF NOT EXISTS(SELECT 1 FROM "PromoParticipant" WHERE campaign_id=cid AND customer_id='v2-5' AND benefit_status='REVIEW' AND prize_slot IS NOT NULL) THEN RAISE EXCEPTION 'Secured right was freed by delivered cancellation'; END IF;
  -- Fulfilled prize cancellation remains review and cannot issue a second benefit.
  UPDATE "Order" SET status='CANCELLED' WHERE id='v2-first';
  IF NOT EXISTS(SELECT 1 FROM "PromoParticipant" WHERE id=pid AND benefit_status='REVIEW' AND prize_slot IS NOT NULL) THEN RAISE EXCEPTION 'Fulfilled benefit silently reissued'; END IF;
